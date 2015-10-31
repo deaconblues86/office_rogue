@@ -382,7 +382,8 @@ def coworker_gen(x,y):
     fighter_component = Fighter(social=social, hunger=hunger, thirst=thirst, bladder=bladder, bowels=bowels, energy=energy, traits=None, death_function=monster_death)
 
     ai_component = BasicCoworker()
-    it_component = ITCoworker()
+    it_component = BasicCoworker(class_func=request_worker, work_func=request_work, work_objs=['Terminal'])
+    maint_component = BasicCoworker(class_func=request_worker, work_func=request_work, work_objs=['Toilet','Urinal','Sink','Coffee Maker','Microwave','Refrigerator','Vending Machine'])
 
     if libtcod.random_get_int(0,0,100) < 61:
         name_file = open('defs/female_names.txt')
@@ -397,10 +398,14 @@ def coworker_gen(x,y):
         # name = names[libtcod.random_get_int(0,0,len(names)-1)]
     
     if libtcod.random_get_int(0,0,100) < 26:
-        ai_component = it_component
-        color = libtcod.light_green
+        if libtcod.random_get_int(0,0,100) < 50:
+            ai_component = maint_component
+            color = libtcod.light_blue
+        else:
+            ai_component = it_component
+            color = libtcod.light_green
     else:
-        color = libtcod.yellow
+        color = libtcod.light_yellow
 
     name = names[libtcod.random_get_int(0,0,len(names)-1)]
     coworker = Object(name,x,y,'@',color,blocks=True,fighter=fighter_component,ai=ai_component,satisfies=['social'])
@@ -434,7 +439,7 @@ def place_objects():
         objects.append(coworker)
 
         out.write(coworker.name + '\n')
-        out.write(coworker.fighter.inventory + '\n')
+        out.write(','.join([x for x in coworker.fighter.inventory]) + '\n')
         out.write(str(coworker.fighter.social) +'\n')
         out.write(str(coworker.fighter.hunger) +'\n')
         out.write(str(coworker.fighter.thirst) +'\n')
@@ -570,7 +575,7 @@ class Object:
         if self.ai:
             self.ai.owner = self
             if self.ai.class_func:
-                self.ai.class_func()
+                self.ai.class_func(self.ai)
     
     # If next tile is passible, set current tile to be passible, move, and new til to be impassible
     def move(self, dx, dy):
@@ -595,7 +600,7 @@ class Object:
         if not new_x is None:
             dx = new_x - self.x
             dy = new_y - self.y
-            
+
             self.move(dx, dy)
             return True
         else:
@@ -748,7 +753,7 @@ class Object:
 
 class Fighter:
     
-    def __init__(self, social, hunger, thirst, bladder, bowels, energy, traits=None, death_function=None, specialty=None):
+    def __init__(self, social, hunger, thirst, bladder, bowels, energy, traits=None, death_function=None):
         self.max_social = float(social)
         self.social = float(social)
         self.social_gain = self.max_social * .2
@@ -785,7 +790,6 @@ class Fighter:
         
         self.greeted = False
         self.death_function = death_function
-        self.specialty = specialty
         self.inventory = list()
     
         if traits:
@@ -798,7 +802,6 @@ class Fighter:
     def take_social(self,social_gain):
         if social_gain > 0:
             self.social = min(self.social + social_gain, self.max_social)
-            self.owner.state = 'success: ' + self.owner.state
     
     def give_social(self, target):
         if target.fighter.social > self.social:
@@ -842,8 +845,10 @@ class Fighter:
 
 class BasicCoworker:
 
-    def __init__(self):
-        self.class_func = False
+    def __init__(self, class_func=False, work_func=False, work_objs=False):
+        self.class_func = class_func
+        self.work_func = work_func
+        self.work_objs = work_objs
     
     def take_turn(self):
         global TURN_COUNT, out
@@ -883,11 +888,15 @@ class BasicCoworker:
 
             # Then, Checking world for satisfaction
             else:
-                wanted_objs = []
-                for obj in objects:
-                    if obj.satisfies:
-                        if lowest_need in obj.satisfies:
-                            wanted_objs.append(obj)
+                if lowest_need == 'work' and self.work_func:
+                    wanted_objs = self.work_func(self, self.work_objs)
+
+                else:
+                    wanted_objs = []
+                    for obj in objects:
+                        if obj.satisfies:
+                            if lowest_need in obj.satisfies:
+                                wanted_objs.append(obj)
 
                 state = 'satisfying ' + lowest_need 
                 coworker.satisfy_need(state, wanted_objs)
@@ -903,7 +912,7 @@ class BasicCoworker:
         # Writing Log of AI turns for Debug
         out.write(str(TURN_COUNT)+'\n')
         out.write(coworker.name + '\n')
-        out.write(coworker.fighter.inventory + '\n')
+        out.write(','.join([x for x in coworker.fighter.inventory]) + '\n')
         out.write(coworker.state + '\n')
         out.write(str(coworker.target.name) + '\n')
 
@@ -917,112 +926,110 @@ class BasicCoworker:
         out.write('\n')
 
 
+# class ITCoworker:
 
-class ITCoworker:
+#     def class_func(self):
 
-    def class_func(self):
+#         coworker = self.owner
 
-        coworker = self.owner
-
-        # Zeroing out work drain  & Maxing out Work for IT
-        coworker.fighter.work_drain = 0
-        coworker.fighter.work = coworker.fighter.max_work
+#         # Zeroing out work drain  & Maxing out Work for IT
+#         coworker.fighter.work_drain = 0
+#         coworker.fighter.work = coworker.fighter.max_work
 
     
-    def take_turn(self):
-        global TURN_COUNT, out
+#     def take_turn(self):
+#         global TURN_COUNT, out
         
-        coworker = self.owner
+#         coworker = self.owner
 
-        ### IT Specific ###
+#         ### IT Specific ###
 
-        # Creating list of requests to handle requests for terminal service
-        self.requests = [x for x in objects if x.name == 'Terminal' and x.state == 'broken']
+#         # Creating list of requests to handle requests for terminal service
+#         self.requests = [x for x in objects if x.name == 'Terminal' and x.state == 'broken']
 
-        ### Shouldn't be needed any longer ###
-        # Verifying objects in requests are still broken
-        # for obj in self.requests:
-        #     if obj.state != 'broken':
-        #         self.requests.remove(obj)
+#         ### Shouldn't be needed any longer ###
+#         # Verifying objects in requests are still broken
+#         # for obj in self.requests:
+#         #     if obj.state != 'broken':
+#         #         self.requests.remove(obj)
 
-        # Setting work drain to be 1 times the number of broken machines
-        if len(self.requests) != 0:
-            coworker.fighter.work_drain = 1 * len(self.requests)
+#         # Setting work drain to be 1 times the number of broken machines
+#         if len(self.requests) != 0:
+#             coworker.fighter.work_drain = 1 * len(self.requests)
 
-        ### ----------- ###
+#         ### ----------- ###
 
-        # BS that's hanging around
-        if libtcod.map_is_in_fov(fov_map, coworker.x, coworker.y) and coworker.fighter.greeted == False:
-            coworker.fighter.greeted = True
-            message(coworker.name + " says hi!")
-
-
-        needs = [(coworker.fighter.social,coworker.fighter.max_social,'social'),
-                (coworker.fighter.hunger,coworker.fighter.max_hunger,'hunger'),
-                (coworker.fighter.thirst,coworker.fighter.max_thirst,'thirst'),
-                (coworker.fighter.bladder,coworker.fighter.max_bladder,'bladder'),
-                (coworker.fighter.bowels,coworker.fighter.max_bowels,'bowels'),
-                (coworker.fighter.energy,coworker.fighter.max_energy,'energy'),
-                (coworker.fighter.work,coworker.fighter.max_work,'work')
-                ]
-
-        # Checking if AI has finished current task.  If so, determines most pressing need
-        if not coworker.state or coworker.state == 'idle':
-            lowest_need = ''
-            lowest_perc = 100
-            for need in needs:
-                perc = need[0]/need[1]
-
-                if perc < lowest_perc:
-                    lowest_perc = perc
-                    lowest_need = need[2]
-
-            ### Modified BasicWorker Logic to use requests when satisfying Wokr
-            if lowest_need == 'work':
-                state = 'satisfying ' + lowest_need
-                cowker.satisfy_need(state, self.requests)
-
-            else:
-                # First, checking inventory for an item to satisfy need
-                useful_items = [obj for obj in coworker.fighter.inventory if lowest_need in obj.satisfies]
-                if useful_items != []:
-                    coworker.use_item(useful_items[0])
-
-                # Then, Checking world for satisfaction
-                else:
-                    wanted_objs = []
-                    for obj in objects:
-                        if obj.satisfies:
-                            if lowest_need in obj.satisfies:
-                                wanted_objs.append(obj)
-
-                    state = 'satisfying ' + lowest_need 
-                    coworker.satisfy_need(state, wanted_objs)
-
-        # If in the process of satisfaction, continue doing it
-        else:
-            coworker.satisfy_need(coworker.state,coworker.criteria)
+#         # BS that's hanging around
+#         if libtcod.map_is_in_fov(fov_map, coworker.x, coworker.y) and coworker.fighter.greeted == False:
+#             coworker.fighter.greeted = True
+#             message(coworker.name + " says hi!")
 
 
-        # print coworker.name, coworker.state, coworker.target.name
+#         needs = [(coworker.fighter.social,coworker.fighter.max_social,'social'),
+#                 (coworker.fighter.hunger,coworker.fighter.max_hunger,'hunger'),
+#                 (coworker.fighter.thirst,coworker.fighter.max_thirst,'thirst'),
+#                 (coworker.fighter.bladder,coworker.fighter.max_bladder,'bladder'),
+#                 (coworker.fighter.bowels,coworker.fighter.max_bowels,'bowels'),
+#                 (coworker.fighter.energy,coworker.fighter.max_energy,'energy'),
+#                 (coworker.fighter.work,coworker.fighter.max_work,'work')
+#                 ]
+
+#         # Checking if AI has finished current task.  If so, determines most pressing need
+#         if not coworker.state or coworker.state == 'idle':
+#             lowest_need = ''
+#             lowest_perc = 100
+#             for need in needs:
+#                 perc = need[0]/need[1]
+
+#                 if perc < lowest_perc:
+#                     lowest_perc = perc
+#                     lowest_need = need[2]
+
+#             ### Modified BasicWorker Logic to use requests when satisfying Wokr
+#             if lowest_need == 'work':
+#                 state = 'satisfying ' + lowest_need
+#                 cowker.satisfy_need(state, self.requests)
+
+#             else:
+#                 # First, checking inventory for an item to satisfy need
+#                 useful_items = [obj for obj in coworker.fighter.inventory if lowest_need in obj.satisfies]
+#                 if useful_items != []:
+#                     coworker.use_item(useful_items[0])
+
+#                 # Then, Checking world for satisfaction
+#                 else:
+#                     wanted_objs = []
+#                     for obj in objects:
+#                         if obj.satisfies:
+#                             if lowest_need in obj.satisfies:
+#                                 wanted_objs.append(obj)
+
+#                     state = 'satisfying ' + lowest_need 
+#                     coworker.satisfy_need(state, wanted_objs)
+
+#         # If in the process of satisfaction, continue doing it
+#         else:
+#             coworker.satisfy_need(coworker.state,coworker.criteria)
 
 
-        # Writing Log of AI turns for Debug
-        out.write(str(TURN_COUNT)+'\n')
-        out.write(coworker.name + '\n')
-        out.write(coworker.fighter.inventory + '\n')
-        out.write(coworker.state + '\n')
-        out.write(str(coworker.target.name) + '\n')
+#         # print coworker.name, coworker.state, coworker.target.name
 
-        out.write('work:\t' + str(coworker.fighter.work) + '/' + str(coworker.fighter.max_work) + '\n')
-        out.write('social:\t' + str(coworker.fighter.social) + '/' + str(coworker.fighter.max_social) + '\n')
-        out.write('hunger:\t' + str(coworker.fighter.hunger) + '/' +  str(coworker.fighter.max_hunger) + '\n')
-        out.write('thirst:\t' + str(coworker.fighter.thirst) + '/' + str(coworker.fighter.max_thirst) + '\n')
-        out.write('bladder:\t' + str(coworker.fighter.bladder) + '/' + str(coworker.fighter.max_bladder) + '\n')
-        out.write('bowels:\t' + str(coworker.fighter.bowels) + '/' + str(coworker.fighter.max_bowels) + '\n')
-        out.write('energy:\t' + str(coworker.fighter.energy) + '/' + str(coworker.fighter.max_energy) + '\n')
-        out.write('\n')
 
+#         # Writing Log of AI turns for Debug
+#         out.write(str(TURN_COUNT)+'\n')
+#         out.write(coworker.name + '\n')
+#         out.write(','.join([x for x in coworker.fighter.inventory]) + '\n')
+#         out.write(coworker.state + '\n')
+#         out.write(str(coworker.target.name) + '\n')
+
+#         out.write('work:\t' + str(coworker.fighter.work) + '/' + str(coworker.fighter.max_work) + '\n')
+#         out.write('social:\t' + str(coworker.fighter.social) + '/' + str(coworker.fighter.max_social) + '\n')
+#         out.write('hunger:\t' + str(coworker.fighter.hunger) + '/' +  str(coworker.fighter.max_hunger) + '\n')
+#         out.write('thirst:\t' + str(coworker.fighter.thirst) + '/' + str(coworker.fighter.max_thirst) + '\n')
+#         out.write('bladder:\t' + str(coworker.fighter.bladder) + '/' + str(coworker.fighter.max_bladder) + '\n')
+#         out.write('bowels:\t' + str(coworker.fighter.bowels) + '/' + str(coworker.fighter.max_bowels) + '\n')
+#         out.write('energy:\t' + str(coworker.fighter.energy) + '/' + str(coworker.fighter.max_energy) + '\n')
+#         out.write('\n')
 
 
 def player_move_or_attack(dx,dy):
@@ -1056,6 +1063,27 @@ def player_death(player):
     
     player.char = '%'
     player.color = libtcod.dark_red
+
+
+def request_worker(ai):
+
+    coworker = ai.owner
+
+    # Zeroing out work drain  & Maxing out Work for IT
+    coworker.fighter.work_drain = 0
+    coworker.fighter.work = coworker.fighter.max_work
+
+def request_work(ai, obj_names):
+
+    # Creating list of requests to handle requests for terminal service
+    ai.requests = [x for x in objects if x.name in obj_names and x.state == 'broken']
+
+    # Setting work drain to be 1 times the number of broken machines
+    if len(fighter.requests) != 0:
+        coworker.fighter.work_drain = 1 * len(ai.requests)
+
+    return self.requests
+
 
 def monster_death(monster):
     message(monster.name.capitalize() + ' is fired!',libtcod.orange)

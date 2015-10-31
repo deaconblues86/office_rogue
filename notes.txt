@@ -72,13 +72,18 @@ Instead of passing functions to usable items, give a satisfies tag (i.e. toilet 
 Furthermore, use funcs are currently just the satisfies tag (basically) += a percentage of the max so these could be dynamically generated as well
 Maybe further refine search by checking for objects that can statisfy multiple needs at the same time (i.e.coffee)
 
-Refactor vend_func to have customizable "options".  Should be data drive and can use something like the inventory menu (read from a list of vending machine objects)
+Refactor vend_func to have customizable "options".  Should be data drivem and can use something like the inventory menu (read from a list of vending machine objects)
 
 Messages are good, could be spruced up, but will need a way to limit to FOV when time comes
 
 Currently no logic for AI to manage inventory -- Theyll atleast use whats in their inventory first -- not so bad
 
-May be nice to not have to hard code class specific details (ITBasicCoworker)
+# May be nice to not have to hard code class specific details (ITBasicCoworker, MaintCoworker)
+Adopted work_func model on basicCoworker to avoid the above line
+^ This same model can be used to control preferences as well
+- Or to hardcode what each one fixes -- could use a db or flat file or give each object special tags (obj_type=appliance obj_type=tech)
+^ Thinking DB the way to go as it offers fast access and could easily be used to saved games.
+~ obj_types have been set up, appliance, tech, furniture, but arent being read
 
 
 
