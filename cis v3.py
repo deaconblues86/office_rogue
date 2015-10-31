@@ -405,7 +405,7 @@ def coworker_gen(x,y):
     name = names[libtcod.random_get_int(0,0,len(names)-1)]
     coworker = Object(name,x,y,'@',color,blocks=True,fighter=fighter_component,ai=ai_component,satisfies=['social'])
     
-    COWORKERS.append(name)
+    COWORKERS.append(coworker)
     name_file.close()
     return coworker
 
@@ -434,6 +434,7 @@ def place_objects():
         objects.append(coworker)
 
         out.write(coworker.name + '\n')
+        out.write(coworker.fighter.inventory + '\n')
         out.write(str(coworker.fighter.social) +'\n')
         out.write(str(coworker.fighter.hunger) +'\n')
         out.write(str(coworker.fighter.thirst) +'\n')
@@ -594,7 +595,7 @@ class Object:
         if not new_x is None:
             dx = new_x - self.x
             dy = new_y - self.y
-
+            
             self.move(dx, dy)
             return True
         else:
@@ -634,12 +635,11 @@ class Object:
                 self.target = self.find_closest(self.criteria)
 
         else:
-            print self.name, 'is adjacent to ', self.target.name
+            # print self.name, 'is adjacent to ', self.target.name
             if self.target.fighter:
                 self.fighter.give_social(self.target)
             else:
                 self.use_object(self.target)
-            # self.state = 'success: ' + self.state
 
 
     def find_closest(self, target, failed=False):
@@ -693,8 +693,9 @@ class Object:
 
 
     def use_item(self, target):
-        if target.use_func != None and target.durability > 0:
+        if target.use_func != None:
             target.durability -= target.use_func(self)
+            print self.name, "is using", target.name, [x.name for x in self.fighter.inventory]
 
             if target.durability <= 0:
                 self.fighter.inventory.remove(target)
@@ -747,7 +748,7 @@ class Object:
 
 class Fighter:
     
-    def __init__(self, social, hunger, thirst, bladder, bowels, energy, traits=None, death_function=None, specialty=None, inventory=list()):
+    def __init__(self, social, hunger, thirst, bladder, bowels, energy, traits=None, death_function=None, specialty=None):
         self.max_social = float(social)
         self.social = float(social)
         self.social_gain = self.max_social * .2
@@ -785,7 +786,7 @@ class Fighter:
         self.greeted = False
         self.death_function = death_function
         self.specialty = specialty
-        self.inventory = inventory
+        self.inventory = list()
     
         if traits:
             if type(traits) == list():
@@ -855,11 +856,6 @@ class BasicCoworker:
             message(coworker.name + " says hi!")
 
 
-        # Normalizing success state - priority already reset
-        if 'success' in coworker.state:
-            coworker.state = 'idle'
-
-
         needs = [(coworker.fighter.social,coworker.fighter.max_social,'social'),
                 (coworker.fighter.hunger,coworker.fighter.max_hunger,'hunger'),
                 (coworker.fighter.thirst,coworker.fighter.max_thirst,'thirst'),
@@ -901,12 +897,13 @@ class BasicCoworker:
             coworker.satisfy_need(coworker.state,coworker.criteria)
 
 
-        print coworker.name, coworker.state, coworker.target.name
+        # print coworker.name, coworker.state, coworker.target.name
 
 
         # Writing Log of AI turns for Debug
         out.write(str(TURN_COUNT)+'\n')
         out.write(coworker.name + '\n')
+        out.write(coworker.fighter.inventory + '\n')
         out.write(coworker.state + '\n')
         out.write(str(coworker.target.name) + '\n')
 
@@ -940,7 +937,7 @@ class ITCoworker:
         ### IT Specific ###
 
         # Creating list of requests to handle requests for terminal service
-        self.requests = [x for x in objects if x.name == 'Terminal' and x.state = 'broken']
+        self.requests = [x for x in objects if x.name == 'Terminal' and x.state == 'broken']
 
         ### Shouldn't be needed any longer ###
         # Verifying objects in requests are still broken
@@ -958,11 +955,6 @@ class ITCoworker:
         if libtcod.map_is_in_fov(fov_map, coworker.x, coworker.y) and coworker.fighter.greeted == False:
             coworker.fighter.greeted = True
             message(coworker.name + " says hi!")
-
-
-        # Normalizing success state - priority already reset
-        if 'success' in coworker.state:
-            coworker.state = 'idle'
 
 
         needs = [(coworker.fighter.social,coworker.fighter.max_social,'social'),
@@ -1012,12 +1004,13 @@ class ITCoworker:
             coworker.satisfy_need(coworker.state,coworker.criteria)
 
 
-        print coworker.name, coworker.state, coworker.target.name
+        # print coworker.name, coworker.state, coworker.target.name
 
 
         # Writing Log of AI turns for Debug
         out.write(str(TURN_COUNT)+'\n')
         out.write(coworker.name + '\n')
+        out.write(coworker.fighter.inventory + '\n')
         out.write(coworker.state + '\n')
         out.write(str(coworker.target.name) + '\n')
 
@@ -1123,12 +1116,14 @@ def water_func(target):
     target.fighter.thirst = min(target.fighter.thirst + (target.fighter.max_thirst * 0.75), target.fighter.max_thirst)
     target.fighter.bladder = max(target.fighter.bladder - (target.fighter.max_bladder *0.1), 0)
     message(target.name.capitalize() + ' drinks some water')
+    target.state = 'success: ' + target.state
     return 50
 
 def snack_func(target):
     target.fighter.hunger = min(target.fighter.hunger + (target.fighter.max_hunger * 0.5), target.fighter.max_hunger)
     target.fighter.bowels = max(target.fighter.bowels - (target.fighter.max_bowels *0.1), 0)
     message(target.name.capitalize() + ' eats a snack')
+    target.state = 'success: ' + target.state
     return 25
 
 def vend_func(target):
@@ -1144,17 +1139,18 @@ def vend_func(target):
 
     ### Inconsistent:  AI can use vend objects regardless of inventory -- Shouldn't be a problem for now since they'll preferencially use their inventory first
     if chosen_index == 0 or target.state == 'satisfying thirst':
-        item = Object('Water Bottle', player.x, player.y, '!', libtcod.light_blue, owner=player, satisfies=['thirst'], item=True, use_func=water_func)
+        vend_item = Object('Water Bottle', target.x, target.y, '!', libtcod.light_blue, owner=target, satisfies=['thirst'], item=True, use_func=water_func)
         message(target.name.capitalize() + ' gets a bottle of water')
 
     elif chosen_index == 1 or target.state == 'satisfying hunger':
-        item = Object('Snack', player.x, player.y, '^', libtcod.light_green, owner=player, satisfies=['hunger'], item=True, use_func=snack_func)
+        vend_item = Object('Snack', target.x, target.y, '^', libtcod.light_green, owner=target, satisfies=['hunger'], item=True, use_func=snack_func)
         message(target.name.capitalize() + ' gets a snack')
 
-    if item:
-        target.fighter.inventory.append(item)
+    if vend_item:
+        target.fighter.inventory.append(vend_item)
+        print target.name, "vending:", chosen_index, vend_item.name,[x.name for x in target.fighter.inventory]
+        target.state = 'success: vend ' + target.state
 
-    target.state = 'success: ' + target.state
     return libtcod.random_get_int(0,5,10)  # Wearing out object
 
 
@@ -1200,17 +1196,6 @@ def menu(header, options, width):
 
 
 def inventory_menu(header):
-    if len(player.fighter.inventory) == 0:
-        options = ["Inventory is empty"]
-    else:
-        options = [item.name for item in player.fighter.inventory]
-    
-    index = menu(header, options, INVENTORY_WIDTH)
-    
-    if index is None or len(player.fighter.inventory) == 0: return None
-    return player.fighter.inventory[index]
-
-def drop_menu(header):
     if len(player.fighter.inventory) == 0:
         options = ["Inventory is empty"]
     else:
@@ -1403,7 +1388,9 @@ def handle_keys():
         elif key.c == ord('i'):
             chosen_item = inventory_menu("Press the specified key to use an item or any other to cancel.\n")
             if chosen_item is not None:
+                print "using:", chosen_item.name
                 player.use_item(chosen_item)
+                print "used:", chosen_item.name,[x.name for x in player.fighter.inventory]
             else:
                 return 'didnt-take-turn'
 
@@ -1420,8 +1407,15 @@ def handle_keys():
 
             chosen_item = menu("Press the specified key to pick up an item or any other to cancel", options, INVENTORY_WIDTH)
             if chosen_item is not None and found != []:
-                player.fighter.inventory.append(found[chosen_item])
-                message("Picked up " + found[chosen_item].name, libtcod.light_violet)
+                if len(player.fighter.inventory) < MAX_INVENTORY:
+                    print "picking:", found[chosen_item].name
+                    player.fighter.inventory.append(found[chosen_item])
+                    objects.remove(found[chosen_item])
+                    message("Picked up " + found[chosen_item].name, libtcod.light_violet)
+                    print "picked:", found[chosen_item].name,[x.name for x in player.fighter.inventory]
+                else:
+                    message("Your Inventory is full", libtcod.dark_red)
+                    return 'didnt-take-turn'
 
             else:
                 return 'didnt-take-turn'
@@ -1431,12 +1425,14 @@ def handle_keys():
         elif key.c == ord('d'):
             chosen_item = inventory_menu("Press the specified key to drop an item or any other to cancel.\n")
             if chosen_item is not None:
+                print "dropping:", chosen_item.name,[x.name for x in player.fighter.inventory]
                 player.fighter.inventory.remove(chosen_item)
                 chosen_item.owner = None
                 chosen_item.x = player.x
                 chosen_item.y = player.y
                 objects.append(chosen_item)
                 message("You dropped the " + chosen_item.name, libtcod.light_violet)
+                print "dropped:", chosen_item.name,[x.name for x in player.fighter.inventory]
 
             else:
                 return 'didnt-take-turn'
@@ -1531,6 +1527,10 @@ while not libtcod.console_is_window_closed():
 
     for object in objects:
         object.clear()
+
+    for coworker in COWORKERS:
+        if 'success' in coworker.state:
+            coworker.state = 'idle'
 
     libtcod.console_flush() # Flushes console window (always at end of loop to refresh screen)
 
