@@ -439,7 +439,7 @@ def place_objects():
         objects.append(coworker)
 
         out.write(coworker.name + '\n')
-        out.write(','.join([x for x in coworker.fighter.inventory]) + '\n')
+        out.write(','.join([x.name for x in coworker.fighter.inventory]) + '\n')
         out.write(str(coworker.fighter.social) +'\n')
         out.write(str(coworker.fighter.hunger) +'\n')
         out.write(str(coworker.fighter.thirst) +'\n')
@@ -556,6 +556,7 @@ class Object:
         self.y = y
         self.char = char
         self.color = color
+        self.orig_color = color
         self.name = name
         self.blocks = blocks
         self.fighter = fighter
@@ -624,27 +625,33 @@ class Object:
         self.criteria = target
         self.target = self.find_closest(self.criteria)
         if not self.target:
-            self.name, 'cant find', target
-
-        if (self.x, self.y) not in  self.target.adjacent():
-            possible_targets = [coords for coords in self.target.adjacent() if not is_blocked(coords[0],coords[1])]
-            if possible_targets != []:
-                target_x, target_y = possible_targets[0]
-
-                # If path isn't found to target object, reassess situation by setting state to idle
-                if not self.move_towards(target_x,target_y):
-                    self.state = 'idle'
-
-            else:
-                print self.target.name, 'is Occupado!'
-                self.target = self.find_closest(self.criteria)
+            print self.name, 'cant find', self.target
 
         else:
-            # print self.name, 'is adjacent to ', self.target.name
-            if self.target.fighter:
-                self.fighter.give_social(self.target)
+            if (self.x, self.y) not in  self.target.adjacent():
+                possible_targets = [coords for coords in self.target.adjacent() if not is_blocked(coords[0],coords[1])]
+                if possible_targets != []:
+                    target_x, target_y = possible_targets[0]
+
+                    # If path isn't found to target object, reassess situation by setting state to idle
+                    if not self.move_towards(target_x,target_y):
+                        self.state = 'idle'
+
+                else:
+                    print self.target.name, 'is Occupado!'
+                    self.target = self.find_closest(self.criteria)
+
             else:
-                self.use_object(self.target)
+                # print self.name, 'is adjacent to ', self.target.name
+                if self.target.fighter:
+                    self.fighter.give_social(self.target)
+
+                # call repair function if broken -- ai won't do this unless repairing
+                elif self.target.state == 'broken':
+                    repair_func(self, self.target)
+
+                else:
+                    self.use_object(self.target)
 
 
     def find_closest(self, target, failed=False):
@@ -661,12 +668,12 @@ class Object:
                 if obj == failed:
                     continue
 
-            # Checking ownership
-            if obj.owner not in [None,self]:
+            # Checking ownership unless repairing
+            if obj.owner not in [None,self] and 'repair' not in self.state:
                 continue
             
-            # Skipping broken objects
-            if obj.state == 'broken':
+            # Skipping broken objects unless repairing
+            if obj.state == 'broken' and 'repair' not in self.state:
                 continue
 
             # Checking if object's in use  ASSUMPTION: no free tiles around object means it's in use
@@ -753,7 +760,7 @@ class Object:
 
 class Fighter:
     
-    def __init__(self, social, hunger, thirst, bladder, bowels, energy, traits=None, death_function=None):
+    def __init__(self, social, hunger, thirst, bladder, bowels, energy, traits=None, specialty=None, death_function=None):
         self.max_social = float(social)
         self.social = float(social)
         self.social_gain = self.max_social * .2
@@ -787,6 +794,8 @@ class Fighter:
         self.max_work = 100.0
         self.work = 50.0
         self.work_drain = -.5
+
+        self.specialty = specialty
         
         self.greeted = False
         self.death_function = death_function
@@ -814,6 +823,8 @@ class Fighter:
             self.take_social(gain)
             message(self.owner.name.capitalize() + ' engages in conversation with ' + target.name + ' for ' + str(gain))
             target.fighter.take_social(target.fighter.social_gain)
+
+        self.owner.state = 'success: ' + self.owner.state
 
     def check_needs(self):
         if self.work <= 0:
@@ -881,6 +892,8 @@ class BasicCoworker:
                     lowest_perc = perc
                     lowest_need = need[2]
 
+            coworker.state = 'satisfying ' + lowest_need
+
             # First, checking inventory for an item to satisfy need
             useful_items = [obj for obj in coworker.fighter.inventory if lowest_need in obj.satisfies]
             if useful_items != []:
@@ -898,8 +911,7 @@ class BasicCoworker:
                             if lowest_need in obj.satisfies:
                                 wanted_objs.append(obj)
 
-                state = 'satisfying ' + lowest_need 
-                coworker.satisfy_need(state, wanted_objs)
+                coworker.satisfy_need(coworker.state, wanted_objs)
 
         # If in the process of satisfaction, continue doing it
         else:
@@ -912,9 +924,14 @@ class BasicCoworker:
         # Writing Log of AI turns for Debug
         out.write(str(TURN_COUNT)+'\n')
         out.write(coworker.name + '\n')
-        out.write(','.join([x for x in coworker.fighter.inventory]) + '\n')
+        out.write(str(coworker.fighter.specialty) + '\n')
+        out.write(','.join([x.name for x in coworker.fighter.inventory]) + '\n')
         out.write(coworker.state + '\n')
-        out.write(str(coworker.target.name) + '\n')
+
+        if coworker.target == False:
+            out.write('object not found\n')
+        else:
+            out.write(str(coworker.target.name) + '\n')
 
         out.write('work:\t' + str(coworker.fighter.work) + '/' + str(coworker.fighter.max_work) + '\n')
         out.write('social:\t' + str(coworker.fighter.social) + '/' + str(coworker.fighter.max_social) + '\n')
@@ -1069,20 +1086,28 @@ def request_worker(ai):
 
     coworker = ai.owner
 
-    # Zeroing out work drain  & Maxing out Work for IT
-    coworker.fighter.work_drain = 0
+    # Maxing out Work for IT -- Need to tick work to check for broken objects
+    # coworker.fighter.work_drain = 0
     coworker.fighter.work = coworker.fighter.max_work
+    coworker.fighter.specialty = 'repair'
 
 def request_work(ai, obj_names):
 
     # Creating list of requests to handle requests for terminal service
-    ai.requests = [x for x in objects if x.name in obj_names and x.state == 'broken']
+    requests = [x for x in objects if x.name in obj_names and x.state == 'broken']
 
-    # Setting work drain to be 1 times the number of broken machines
-    if len(fighter.requests) != 0:
-        coworker.fighter.work_drain = 1 * len(ai.requests)
+    # Setting work drain at plus 10% forc each broken machine
+    if len(requests) != 0:
+        ai.owner.fighter.work_drain += ai.owner.fighter.work_drain * 0.1
+        ai.owner.state += '-brepairing'
+        print [x.name for x in requests], ai.owner.fighter.work_drain
 
-    return self.requests
+    else:
+        ai.owner.fighter.work = ai.owner.fighter.max_work
+        ai.owner.state = "success: " + ai.owner.state
+        print 'nothing broken found'
+
+    return requests
 
 
 def monster_death(monster):
@@ -1130,6 +1155,19 @@ def desk_func(target):
     target.state = 'success: ' + target.state
     return libtcod.random_get_int(0,5,10)  # Wearing out object
 
+def repair_func(worker, target):
+    energy_ratio = float(worker.fighter.energy) / float(worker.fighter.max_energy)
+    work_gain = worker.fighter.max_work * (energy_ratio * .3)
+    worker.fighter.work = min(worker.fighter.work + work_gain, worker.fighter.max_work)
+    worker.fighter.energy = max(worker.fighter.energy - (work_gain * 0.25), 0)
+    message(worker.name.capitalize() + ' repairs the ' + target.name.capitalize())
+    worker.state = 'success: ' + worker.state
+    
+    # Currently setting up repair to add durability to target equal to work put it
+    target.durability += work_gain
+    target.state = ""
+    target.color = target.orig_color
+
 def coffee_func(target):
     target.fighter.energy = target.fighter.max_energy
     target.fighter.thirst = min(target.fighter.thirst + (target.fighter.max_thirst * 0.25), target.fighter.max_thirst)
@@ -1156,7 +1194,7 @@ def snack_func(target):
 
 def vend_func(target):
     chosen_index = None
-    item = False
+    vend_item = False
     if target == player:
         if len(target.fighter.inventory) == MAX_INVENTORY:
             message("Your Inventory is full", libtcod.dark_red)
@@ -1179,7 +1217,10 @@ def vend_func(target):
         print target.name, "vending:", chosen_index, vend_item.name,[x.name for x in target.fighter.inventory]
         target.state = 'success: vend ' + target.state
 
-    return libtcod.random_get_int(0,5,10)  # Wearing out object
+        return libtcod.random_get_int(0,5,10)  # Wearing out object
+
+    # Returning zero to not damage vending machine if nothing is selected
+    return 0
 
 
 
