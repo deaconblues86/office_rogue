@@ -41,3 +41,5 @@ Wanda
 Stella
 Alise
 Audrey
+Carol
+Karen
