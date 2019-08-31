@@ -75,6 +75,12 @@ class MapGenerator():
             for y in range(map_height):
                 if (x, y) not in inside_tiles:
                     self.tiles[x][y].ttype = "grass"
+                    obj = game_objects["~"]
+                    self.game.create_object(x, y, obj)
+
+        for coord in self.interior.edges():
+            obj = game_objects["#"]
+            self.game.create_object(coord[0], coord[1], obj)
 
         h_halls = []
         rooms = []
@@ -239,6 +245,7 @@ class MapGenerator():
     def place_doors(self, room):
         # Placing Doors
         possible_doors = []
+        # TODO:  Redo this business and drop ttype altogether
         for x in range(room.x1 + 1, room.x2):
             if (
                 not self.tiles[x][room.y1 + 1].blocked
