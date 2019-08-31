@@ -1,0 +1,123 @@
+{
+    "S": {
+        "name": "Supply Closet",
+        "char": "S",
+        "color": "yellow",
+        "blocks": true,
+        "type": "appliance"
+    },
+    "=": {
+        "name": "Desk",
+        "char": "=",
+        "color": "yellow",
+        "satisfies": ["work"],
+        "blocks": true,
+        "use_func": "desk_func",
+        "type": "appliance"
+    },
+    "V": {
+        "name": "Vending Machine",
+        "char": "V",
+        "color": "yellow",
+        "satisfies": ["hunger", "thirst"],
+        "blocks": true,
+        "use_func": "vend_func",
+        "type": "appliance"
+    },
+    "C": {
+        "name": "Coffee Maker",
+        "char": "C",
+        "color": "yellow",
+        "satisfies": ["energy", "thirst"],
+        "blocks": true,
+        "use_func": "coffee_func",
+        "type": "appliance"
+    },
+    "F": {
+        "name": "Refrigerator",
+        "char": "F",
+        "color": "blue",
+        "blocks": true,
+        "type": "appliance"
+    },
+    "M": {
+        "name": "Microwave",
+        "char": "M",
+        "color": "orange",
+        "blocks": true,
+        "type": "appliance"
+    },
+    "t": {
+        "name": "Terminal",
+        "char": "t",
+        "color": "light_green",
+        "satisfies": ["work"],
+        "blocks": true,
+        "use_func": "terminal_func",
+        "type": "appliance"
+    },
+    "U": {
+        "name": "Urinal",
+        "char": "U",
+        "color": "white",
+        "blocks": true,
+        "satisfies": ["bladder"],
+        "use_func": "urinal_func",
+        "type": "appliance"
+    },
+    "H": {
+        "name": "Sink", 
+        "char": "S",
+        "color": "white",
+        "blocks": true,
+        "type": "appliance"
+    },
+    "T": {
+        "name": "Toilet",
+        "char": "T",
+        "color": "white",
+        "blocks": true,
+        "satisfies": ["bladder", "bowels"],
+        "use_func": "toilet_func",
+        "type": "appliance"
+    },
+    "x": {
+        "name": "Chair",
+        "char": "x",
+        "color": "dark_yellow",
+        "blocks": false,
+        "type": "base"
+    },
+    "+": {
+        "name": "Door",
+        "char": "+",
+        "color": "light_sepia",
+        "type": "base"
+    },
+    "#": {
+        "name": "Wall",
+        "char": "#",
+        "color": "white",
+        "blocks": true,
+        "type": "base"
+    },
+    "~": {
+        "name": "Grass",
+        "char": "~",
+        "color": "light_green",
+        "blocks": false,
+        "type": "base"
+    },
+    "Mens": {
+        "name": "tag",
+        "char": "M",
+        "color": "light_blue",
+        "type": "base"
+    },
+    "Womens": {
+        "name": "tag",
+        "char": "W",
+        "color": "pink",
+        "type": "base"
+    }
+}
