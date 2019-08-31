@@ -776,7 +776,9 @@ libtcod.console_set_custom_font(
 )
 
 # Init Console Window
-libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, "CIS", False, renderer=libtcod.RENDERER_SDL2)
+libtcod.console_init_root(
+    SCREEN_WIDTH, SCREEN_HEIGHT, "CIS", False, renderer=libtcod.RENDERER_SDL2
+)
 
 # Creating off-screen console for main scree
 con = libtcod.console.Console(MAP_WIDTH, MAP_HEIGHT)

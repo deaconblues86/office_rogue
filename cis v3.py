@@ -42,18 +42,18 @@ class Rect():
     def edges(self):
         edges = []
 
-        for x in range(self.x1, self.x2):
+        for x in range(int(self.x1), int(self.x2)):
             edges.append((x, self.y1))
             edges.append((x, self.y2-1))
-        for y in range(self.y1, self.y2):
+        for y in range(int(self.y1), int(self.y2)):
             edges.append((self.x1, y))
             edges.append((self.x2-1, y))
         return edges
 
     def get_tiles(self):
         all_tiles = []
-        for x in range(self.x1, self.x2):
-            for y in range(self.y1, self.y2):
+        for x in range(int(self.x1), int(self.x2)):
+            for y in range(int(self.y1), int(self.y2)):
                 all_tiles.append((x, y))
         return all_tiles
 
@@ -232,12 +232,12 @@ def room_fill(x, y, max_w):
 
 def make_map():
     global map, player
-    map = [[Tile(False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    map = [[Tile(False) for y in range(int(MAP_HEIGHT))] for x in range(int(MAP_WIDTH))]
 
     inside_tiles = INSIDE.get_tiles()
     inside_edges = INSIDE.edges()
-    for x in range(MAP_WIDTH):
-        for y in range(MAP_HEIGHT):
+    for x in range(int(MAP_WIDTH)):
+        for y in range(int(MAP_HEIGHT)):
             if (x, y) not in inside_tiles:
                 map[x][y].ttype = 'grass'
 
@@ -362,7 +362,7 @@ def is_blocked(x, y):
     return False
 
 
-out = open('coworkers.txt', 'wb')
+out = open('coworkers.txt', 'w')
 
 
 def coworker_gen(x, y):
@@ -611,7 +611,7 @@ class Object:
             self.move(dx, dy)
             return True
         else:
-            print self.name + " is stuck"
+            print(self.name + " is stuck")
             return False
 
         libtcod.path_delete(path)                
@@ -631,7 +631,7 @@ class Object:
         self.criteria = target
         self.target = self.find_closest(self.criteria)
         if not self.target:
-            print self.name, 'cant find', self.target
+            print(self.name, 'cant find', self.target)
 
         else:
             if (self.x, self.y) not in  self.target.adjacent():
@@ -644,7 +644,7 @@ class Object:
                         self.state = 'idle'
 
                 else:
-                    print self.target.name, 'is Occupado!'
+                    print(self.target.name, 'is Occupado!')
                     self.target = self.find_closest(self.criteria)
 
             else:
@@ -713,7 +713,7 @@ class Object:
     def use_item(self, target):
         if target.use_func != None:
             target.durability -= target.use_func(self)
-            print self.name, "is using", target.name, [x.name for x in self.fighter.inventory]
+            print(self.name, "is using", target.name, [x.name for x in self.fighter.inventory])
 
             if target.durability <= 0:
                 self.fighter.inventory.remove(target)
@@ -1105,12 +1105,12 @@ def request_work(ai, obj_names):
     if len(requests) != 0:
         ai.owner.fighter.work_drain += ai.owner.fighter.work_drain * 0.1
         ai.owner.state += '-brepairing'
-        print [x.name for x in requests], ai.owner.fighter.work_drain
+        print([x.name for x in requests], ai.owner.fighter.work_drain)
 
     else:
         ai.owner.fighter.work = ai.owner.fighter.max_work
         ai.owner.state = "success: " + ai.owner.state
-        print 'nothing broken found'
+        print('nothing broken found')
 
     return requests
 
@@ -1219,7 +1219,7 @@ def vend_func(target):
 
     if vend_item:
         target.fighter.inventory.append(vend_item)
-        print target.name, "vending:", chosen_index, vend_item.name,[x.name for x in target.fighter.inventory]
+        print(target.name, "vending:", chosen_index, vend_item.name,[x.name for x in target.fighter.inventory])
         target.state = 'success: vend ' + target.state
 
         return libtcod.random_get_int(0,5,10)  # Wearing out object
@@ -1314,7 +1314,7 @@ def render_bar(x, y, total_width, name, value, maximum, text_color, bar_color, b
 
     # Text of actual values
     libtcod.console_set_default_foreground(panel, text_color)
-    libtcod.console_print_ex(panel, x + total_width / 2, y, libtcod.BKGND_NONE, libtcod.CENTER, name + ": " + str(value) + '/' + str(maximum))
+    libtcod.console_print_ex(panel, int(x + total_width / 2), y, libtcod.BKGND_NONE, libtcod.CENTER, name + ": " + str(value) + '/' + str(maximum))
 
 def render_all():
     global fov_map, color_dark_wall, color_light_wall
@@ -1327,8 +1327,8 @@ def render_all():
         libtcod.map_compute_fov(fov_map, player.x, player.y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
             
     
-    for y in range(MAP_HEIGHT):
-        for x in range(MAP_WIDTH):
+    for y in range(int(MAP_HEIGHT)):
+        for x in range(int(MAP_WIDTH)):
             visible = libtcod.map_is_in_fov(fov_map, x, y)
             wall = map[x][y].block_sight
             ttype = map[x][y].ttype
@@ -1366,7 +1366,7 @@ def render_all():
         
     player.draw()
     
-    libtcod.console_blit(con, 0, 0, SCREEN_WIDTH,SCREEN_HEIGHT, 0,0,0) # Writing offscreen console to main console
+    libtcod.console_blit(con, 0, 0, int(SCREEN_WIDTH), int(SCREEN_HEIGHT), 0,0,0) # Writing offscreen console to main console
     
     libtcod.console_clear(panel)
     libtcod.console_set_default_foreground(panel, libtcod.white)
@@ -1409,7 +1409,7 @@ def render_all():
     libtcod.console_set_default_foreground(panel, libtcod.light_grey)
     libtcod.console_print_ex(panel, 1, 0, libtcod.BKGND_NONE, libtcod.LEFT, get_names_under_mouse())
     
-    libtcod.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, 0,0,PANEL_Y)
+    libtcod.console_blit(panel, 0, 0, int(SCREEN_WIDTH), int(PANEL_HEIGHT), 0, 0, int(PANEL_Y))
 
     
 
@@ -1462,9 +1462,9 @@ def handle_keys():
         elif key.c == ord('i'):
             chosen_item = inventory_menu("Press the specified key to use an item or any other to cancel.\n")
             if chosen_item is not None:
-                print "using:", chosen_item.name
+                print("using:", chosen_item.name)
                 player.use_item(chosen_item)
-                print "used:", chosen_item.name,[x.name for x in player.fighter.inventory]
+                print("used:", chosen_item.name,[x.name for x in player.fighter.inventory])
             else:
                 return 'didnt-take-turn'
 
@@ -1482,11 +1482,11 @@ def handle_keys():
             chosen_item = menu("Press the specified key to pick up an item or any other to cancel", options, INVENTORY_WIDTH)
             if chosen_item is not None and found != []:
                 if len(player.fighter.inventory) < MAX_INVENTORY:
-                    print "picking:", found[chosen_item].name
+                    print("picking:", found[chosen_item].name)
                     player.fighter.inventory.append(found[chosen_item])
                     objects.remove(found[chosen_item])
                     message("Picked up " + found[chosen_item].name, libtcod.light_violet)
-                    print "picked:", found[chosen_item].name,[x.name for x in player.fighter.inventory]
+                    print("picked:", found[chosen_item].name,[x.name for x in player.fighter.inventory])
                 else:
                     message("Your Inventory is full", libtcod.dark_red)
                     return 'didnt-take-turn'
@@ -1499,14 +1499,14 @@ def handle_keys():
         elif key.c == ord('d'):
             chosen_item = inventory_menu("Press the specified key to drop an item or any other to cancel.\n")
             if chosen_item is not None:
-                print "dropping:", chosen_item.name,[x.name for x in player.fighter.inventory]
+                print("dropping:", chosen_item.name,[x.name for x in player.fighter.inventory])
                 player.fighter.inventory.remove(chosen_item)
                 chosen_item.owner = None
                 chosen_item.x = player.x
                 chosen_item.y = player.y
                 objects.append(chosen_item)
                 message("You dropped the " + chosen_item.name, libtcod.light_violet)
-                print "dropped:", chosen_item.name,[x.name for x in player.fighter.inventory]
+                print("dropped:", chosen_item.name,[x.name for x in player.fighter.inventory])
 
             else:
                 return 'didnt-take-turn'
@@ -1519,13 +1519,13 @@ def handle_keys():
 libtcod.console_set_custom_font('arial12x12.png', libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
 
 # Init Console Window
-libtcod.console_init_root(SCREEN_WIDTH,SCREEN_HEIGHT, 'CIS', False)
+libtcod.console_init_root(int(SCREEN_WIDTH), int(SCREEN_HEIGHT), 'CIS', False)
 
 # Creating off-screen console for main scree
-con = libtcod.console_new(MAP_WIDTH,MAP_HEIGHT)
+con = libtcod.console_new(int(MAP_WIDTH), int(MAP_HEIGHT))
 
 # Creating off screen console for UI
-panel = libtcod.console_new(SCREEN_WIDTH,PANEL_HEIGHT)
+panel = libtcod.console_new(int(SCREEN_WIDTH), int(PANEL_HEIGHT))
 
 # Sets FPS limit (only affects realtime)
 libtcod.sys_set_fps(LIMIT_FPS)
@@ -1549,14 +1549,14 @@ game_msgs = []
 # Generates Map
 make_map()
 
-fov_map = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
-for y in range(MAP_HEIGHT):
-    for x in range(MAP_WIDTH):
+fov_map = libtcod.map_new(int(MAP_WIDTH), int(MAP_HEIGHT))
+for y in range(int(MAP_HEIGHT)):
+    for x in range(int(MAP_WIDTH)):
         libtcod.map_set_properties(fov_map, x, y, not map[x][y].block_sight, not map[x][y].blocked)
 
-path_map = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
-for y in range(MAP_HEIGHT):
-    for x in range(MAP_WIDTH):
+path_map = libtcod.map_new(int(MAP_WIDTH), int(MAP_HEIGHT))
+for y in range(int(MAP_HEIGHT)):
+    for x in range(int(MAP_WIDTH)):
         libtcod.map_set_properties(path_map, x, y, not map[x][y].block_sight, not is_blocked(x,y))
 
 fov_recompute = True
@@ -1575,7 +1575,7 @@ while not libtcod.console_is_window_closed():
     
     render_all()
     
-    libtcod.console_blit(con, 0,0, SCREEN_WIDTH,SCREEN_HEIGHT, 0,0,0) # Writing offscreen console to main console
+    libtcod.console_blit(con, 0,0, int(SCREEN_WIDTH),int(SCREEN_HEIGHT), 0,0,0) # Writing offscreen console to main console
     
     # Calls key function.  Only returns True is exit is hit
     player_action = handle_keys()
