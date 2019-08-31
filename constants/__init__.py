@@ -59,5 +59,11 @@ with open("defs/rooms.txt") as room_file:
 with open("defs/objects.json") as obj_file:
     game_objects = json.loads(obj_file.read())
 
+with open('defs/female_names.txt') as names:
+    female_names = [n.strip() for n in names.readlines()]
+
+with open('defs/male_names.txt') as names:
+    male_names = [n.strip() for n in names.readlines()]
+
 
 MAX_INVENTORY = 4

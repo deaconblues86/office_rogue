@@ -1,8 +1,10 @@
+import random
+import textwrap
+
 from tcod.console import Console
 from tcod.event import EventDispatch
-from constants import colors
+from constants import colors, female_names, male_names
 from utils import object_funcs
-import textwrap
 
 key_map = {
     27: "exit",
@@ -148,7 +150,42 @@ class GameInstance():
         self.add_tile_content(obj)
 
     def create_coworker(self, x, y):
-        pass
+        params = {
+            "char": "@",
+            "satisfies": ['social'],
+            "blocks": True,
+            "social": random.randrange(25, 100),
+            "hunger": random.randrange(25, 100),
+            "thirst": random.randrange(25, 100),
+            "bladder": random.randrange(75, 100),
+            "bowels": random.randrange(75, 100),
+            "energy": random.randrange(25, 100)
+        }
+
+        if random.randrange(0, 100) < 61:
+            params["gender"] = "female"
+            params["name"] = female_names[random.randrange(0, len(female_names))]
+        else:
+            params["gender"] = "male"
+            params["name"] = male_names[random.randrange(0, len(female_names))]
+
+        # Rolling Dice on special jobs
+        # TODO: Move special jobs out into Defs
+        if random.randrange(0, 100) < 26:
+            if random.randrange(0, 100) < 50:
+                params["job"] = "it"
+                params["color"] = "light_blue"
+                params["work_objs"] = [
+                    'Toilet', 'Urinal', 'Sink', 'Coffee Maker', 'Microwave', 'Refrigerator', 'Vending Machine'
+                ]
+
+            else:
+                params["job"] = "maintenance"
+                params["color"] = "light_green"
+                params["work_objs"] = ['Terminal']
+        else:
+            params["job"] = "standard"
+            params["color"] = "light_yellow"
 
     # Sets up key_bindings
     def handle_keys(self, event):
