@@ -192,21 +192,22 @@ class MapGenerator():
                 self.fov_map.transparent[y, x] = self.tiles.blocked
 
     def generate_coworkers(self):
+        # Generates Player and Coworks and assigned Terminals
         terminals = [x for x in self.game.appliances if x.name == 'Terminal']
 
-        # Marking Player Owned Terminal
         player_terminal = terminals.pop(0)
-        player_terminal.owner = self.game.player
         adj_tiles = [x for x in player_terminal.adjacent() if not x.blocked]
-        self.game.player.x = adj_tiles[0].x
-        self.game.player.y = adj_tiles[0].y
+
+        player = self.game.create_coworker(adj_tiles[0].x, adj_tiles[0].y, creating_player=True)
+        print("Creating Player")
+        player_terminal.owner = self.game.player = player
 
         temp_count = len(terminals) / 2
         for t in terminals:
             if temp_count == 0:
                 break
 
-            adj_tiles = [x for x in player_terminal.adjacent() if not x.blocked]
+            adj_tiles = [x for x in t.adjacent() if not x.blocked]
             x = adj_tiles[0].x
             y = adj_tiles[0].y
 
@@ -280,16 +281,30 @@ class MapGenerator():
             ):
                 possible_doors.append((room.x2, y))
 
+        if not possible_doors:
+            print("Room with No doors...")
+            return None
+
         door_index_a = random.randrange(0, len(possible_doors))
         door_index_b = random.randrange(0, len(possible_doors))
         if possible_doors != []:
             x = possible_doors[door_index_a][0]
             y = possible_doors[door_index_a][1]
             obj = game_objects["+"]
+
+            # Removing wall prior to door placement
+            door_tile = self.game.get_tile(x, y)
+            walls = [x for x in door_tile.contents if x.name == "Wall"]
+            if walls:
+                self.game.delete_object(walls[0])
             self.game.create_object(x, y, obj)
 
             x = possible_doors[door_index_b][0]
             y = possible_doors[door_index_b][1]
+            door_tile = self.game.get_tile(x, y)
+            walls = [x for x in door_tile.contents if x.name == "Wall"]
+            if walls:
+                self.game.delete_object(walls[0])
             self.game.create_object(x, y, obj)
 
     def create_hall(self, hall):

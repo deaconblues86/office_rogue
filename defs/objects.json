@@ -4,6 +4,8 @@
         "char": "S",
         "color": "yellow",
         "blocks": true,
+        "satisfies": ["none"],
+        "use_func": "none",
         "type": "appliance"
     },
     "=": {
@@ -38,6 +40,8 @@
         "char": "F",
         "color": "blue",
         "blocks": true,
+        "satisfies": ["none"],
+        "use_func": "none",
         "type": "appliance"
     },
     "M": {
@@ -45,6 +49,8 @@
         "char": "M",
         "color": "orange",
         "blocks": true,
+        "satisfies": ["none"],
+        "use_func": "none",
         "type": "appliance"
     },
     "t": {
@@ -70,6 +76,8 @@
         "char": "S",
         "color": "white",
         "blocks": true,
+        "satisfies": ["none"],
+        "use_func": "none",
         "type": "appliance"
     },
     "T": {

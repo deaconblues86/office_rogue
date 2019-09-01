@@ -30,17 +30,41 @@ map_height = interior_y + (OUTSIDE_BORDER * 2)
 screen_width = map_width + 10
 screen_height = map_height + 7
 
+BAR_WIDTH = 20
+STATS = [
+    ("work", "green"),
+    ("social", "yellow"),
+    ("energy", "violet"),
+    ("hunger", "red"),
+    ("hunger", "blue"),
+    ("hunger", "grey"),
+    ("hunger", "sepia")
+]
+
+MSG_HEIGHT = 7
+msg_width = screen_width - BAR_WIDTH - 2
+
 colors = {
     "white": (255, 255, 255),
     "black": (0, 0, 0),
-    "yellow": tcod.yellow,
-    "dark_yellow": tcod.dark_yellow,
-    "orange": tcod.orange,
-    "pink": tcod.pink,
+    "light_grey": tcod.light_grey,
+    "dark_grey": tcod.dark_grey,
     "light_sepia": tcod.light_sepia,
+    "dark_sepia": tcod.dark_sepia,
+    "pink": tcod.pink,
+    "light_red": tcod.light_red,
+    "dark_red": tcod.dark_red,
+    "orange": tcod.orange,
+    "yellow": tcod.yellow,
+    "light_yellow": tcod.yellow,
+    "dark_yellow": tcod.dark_yellow,
+    "light_green": tcod.light_green,
+    "dark_green": tcod.dark_green,
     "blue": tcod.blue,
     "light_blue": tcod.light_blue,
-    "light_green": tcod.light_green,
+    "dark_blue": tcod.dark_blue,
+    "light_violet": tcod.light_violet,
+    "dark_violet": tcod.dark_violet,
 }
 
 room_types = {}

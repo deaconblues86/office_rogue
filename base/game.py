@@ -3,7 +3,7 @@ import textwrap
 
 from tcod.console import Console
 from tcod.event import EventDispatch
-from constants import colors, female_names, male_names
+from constants import map_height, BAR_WIDTH, STATS, MSG_HEIGHT, msg_width, colors, female_names, male_names
 from utils import object_funcs
 
 key_map = {
@@ -36,7 +36,12 @@ class Dispatcher(EventDispatch):
         self.app.handle_keys(event)
 
     def ev_mousebuttondown(self, event):
-        print(event)
+        print(f"X: {event.tile.x}, Y: {event.tile.y}")
+        try:
+            clicked_tile = self.app.get_tile(event.tile.x, event.tile.y)
+            print([x.name for x in clicked_tile.contents])
+        except IndexError:
+            pass
 
     def ev_mousemotion(self, event):
         pass
@@ -55,6 +60,7 @@ class BaseObject():
         if kwargs.get("blocks_sight"):
             self.blocks_sight = kwargs.get("blocks_sight")
 
+        self.durability = durability
         self.state = ""
 
     def adjacent(self):
@@ -63,29 +69,75 @@ class BaseObject():
 
 
 class Item(BaseObject):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, satisfies, use_func, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.use_func = None
-        self.owner = None
+        self.satisfies = satisfies
+        self.use_func_lookup = use_func
+        self.owner = owner
 
-        if kwargs.get("use_func"):
-            self.use_func = getattr(object_funcs, kwargs.get("use_func"))
+        # Get actual function from string repr
+        if self.use_func:
+            self.use_func = getattr(object_funcs, self.use_func_lookup, self.use_func)
+
+    def use(self, user):
+        wear = self.use_func(user)
+        self.durability -= wear
+
+    def use_func(self, target):
+        return 0
 
 
 class Mob(BaseObject):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, social, hunger, thirst, bladder, bowels, energy, gender, job, work_objs, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.social = social
+        self.hunger = hunger
+        self.thirst = thirst
+        self.bladder = bladder
+        self.bowels = bowels
+        self.energy = energy
+        self.work = 50
+
+        self.gender = gender
+        self.job = job
+        self.work_objs = work_objs
+
+        self.max_social = social
+        self.max_hunger = hunger
+        self.max_thirst = thirst
+        self.max_bladder = bladder
+        self.max_bowels = bowels
+        self.max_energy = energy
+        self.max_work = 100
+
+        self.social_gain = int(self.max_social * 0.2)
+        self.social_drain = 1
+        self.hunger_drain = -1
+        self.thirst_drain = -2
+        self.bladder_drain = -2
+        self.bowels_drain = -1
+        self.energy_drain = -1
+        self.work_drain = -1
 
     def move(self, mod_x, mod_y):
         dest_x = self.x + mod_x
         dest_y = self.y + mod_y
         dest_tile = self.game.get_tile(dest_x, dest_y)
+        print([(c.name, c.blocks) for c in dest_tile.contents])
         if not dest_tile.blocked:
             self.game.remove_tile_content(self)
             self.game.add_tile_content(self)
             self.x = dest_tile.x
             self.y = dest_tile.y
             print(self.x, self.y)
+        else:
+            # Assumes one usable object per tile
+            appliances = [c for c in dest_tile.contents if getattr(c, "use_func")]
+            if appliances:
+                appliances[0].use(self)
+
+    def broadcast(self, message, color):
+        self.game.log_message(message, color)
 
 
 class GameInstance():
@@ -98,9 +150,7 @@ class GameInstance():
         # Creating off screen console for UI - allows for alpha transparency
         self.inventory = Console(50, root_console.height)
 
-        self.player = Mob(self, name="Player", x=20, y=20, char="@", color="white", blocks=True)
-
-        self.mobs = [self.player]
+        self.mobs = []
         self.items = []
         self.appliances = []
         self.static = []
@@ -113,6 +163,52 @@ class GameInstance():
 
     def render(self, obj):
         self.root_console.print(x=obj.x, y=obj.y, string=obj.char, fg=obj.color, bg=colors["black"])
+
+    def render_bars(self):
+        for i, stat in enumerate(STATS):
+            self.render_bar(i+1, *stat)
+
+    def render_bar(self, count, stat, color):
+        x = 1
+        y = map_height + count
+        val = getattr(self.player, stat)
+        top = getattr(self.player, f"max_{stat}")
+        ratio = val / top
+        filled = int(BAR_WIDTH * ratio)
+        if count > 4:
+            x = BAR_WIDTH + 1
+            y = y - 4
+        self.root_console.draw_rect(
+            x=x, y=y,
+            width=BAR_WIDTH,
+            height=1,
+            ch=0,
+            fg=colors["black"],
+            bg=colors[f"dark_{color}"]
+        )
+        self.root_console.draw_rect(
+            x=x, y=y,
+            width=filled,
+            height=1,
+            ch=0,
+            fg=colors["black"],
+            bg=colors[f"light_{color}"]
+        )
+        self.root_console.print(x=x + 1, y=y, string=f"{stat.capitalize()}: {val} / {top}")
+
+    def render_messages(self):
+        x = int(BAR_WIDTH * 2) + 1
+        y = map_height
+        for msg in self.game_msgs:
+            y += 1
+            self.root_console.print(x=x + 1, y=y, string=msg[0], fg=colors[msg[1]])
+
+    def log_message(self, new_msg, color):
+        new_msg_lines = textwrap.wrap(new_msg, msg_width)
+        for line in new_msg_lines:
+            if len(self.game_msgs) == MSG_HEIGHT:
+                self.game_msgs.pop(0)
+            self.game_msgs.append((line, color))
 
     def player_move_or_use(self, x, y):
         self.player.move(x, y)
@@ -130,8 +226,11 @@ class GameInstance():
     def remove_tile_content(self, obj):
         self.game_map.remove_object(obj)
 
+    def delete_object(self, obj):
+        self.remove_tile_content(obj)
+        del obj
+
     def create_object(self, x, y, obj_params):
-        print(obj_params)
         obj_params.update({"game": self, "x": x, "y": y})
 
         if obj_params["type"] == "base":
@@ -149,11 +248,14 @@ class GameInstance():
 
         self.add_tile_content(obj)
 
-    def create_coworker(self, x, y):
+        return obj
+
+    def create_coworker(self, x, y, creating_player=False):
         params = {
             "char": "@",
             "satisfies": ['social'],
             "blocks": True,
+            "type": "mob",
             "social": random.randrange(25, 100),
             "hunger": random.randrange(25, 100),
             "thirst": random.randrange(25, 100),
@@ -167,25 +269,34 @@ class GameInstance():
             params["name"] = female_names[random.randrange(0, len(female_names))]
         else:
             params["gender"] = "male"
-            params["name"] = male_names[random.randrange(0, len(female_names))]
+            params["name"] = male_names[random.randrange(0, len(male_names))]
 
         # Rolling Dice on special jobs
         # TODO: Move special jobs out into Defs
-        if random.randrange(0, 100) < 26:
+        if not creating_player and random.randrange(0, 100) < 26:
             if random.randrange(0, 100) < 50:
-                params["job"] = "it"
+                params["job"] = "maintenance"
                 params["color"] = "light_blue"
                 params["work_objs"] = [
                     'Toilet', 'Urinal', 'Sink', 'Coffee Maker', 'Microwave', 'Refrigerator', 'Vending Machine'
                 ]
 
             else:
-                params["job"] = "maintenance"
+                params["job"] = "it"
                 params["color"] = "light_green"
                 params["work_objs"] = ['Terminal']
+
+        # Player will always have standard job for now
         else:
             params["job"] = "standard"
             params["color"] = "light_yellow"
+            params["work_objs"] = ['Terminal', 'Desk']
+
+        if creating_player:
+            params["color"] = "white"
+
+        coworker = self.create_object(x, y, params)
+        return coworker
 
     # Sets up key_bindings
     def handle_keys(self, event):

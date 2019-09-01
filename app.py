@@ -22,6 +22,8 @@ with tcod.console_init_root(
     map_gen.generate_map()
     while True:
         game.render_all()
+        game.render_bars()
+        game.render_messages()
         tcod.console_flush()  # Show the console.
         for event in Event.wait():
             dispatcher.dispatch(event)
