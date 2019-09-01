@@ -39,7 +39,7 @@ class Dispatcher(EventDispatch):
         print(f"X: {event.tile.x}, Y: {event.tile.y}")
         try:
             clicked_tile = self.app.get_tile(event.tile.x, event.tile.y)
-            print([x.name for x in clicked_tile.contents])
+            self.app.log_message(f"Items in tile: {', '.join([x.name for x in clicked_tile.contents])}")
         except IndexError:
             pass
 
@@ -126,10 +126,9 @@ class Mob(BaseObject):
         print([(c.name, c.blocks) for c in dest_tile.contents])
         if not dest_tile.blocked:
             self.game.remove_tile_content(self)
-            self.game.add_tile_content(self)
             self.x = dest_tile.x
             self.y = dest_tile.y
-            print(self.x, self.y)
+            self.game.add_tile_content(self)
         else:
             # Assumes one usable object per tile
             appliances = [c for c in dest_tile.contents if getattr(c, "use_func")]
@@ -203,7 +202,7 @@ class GameInstance():
             y += 1
             self.root_console.print(x=x + 1, y=y, string=msg[0], fg=colors[msg[1]])
 
-    def log_message(self, new_msg, color):
+    def log_message(self, new_msg, color="white"):
         new_msg_lines = textwrap.wrap(new_msg, msg_width)
         for line in new_msg_lines:
             if len(self.game_msgs) == MSG_HEIGHT:

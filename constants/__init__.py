@@ -41,7 +41,7 @@ STATS = [
     ("hunger", "sepia")
 ]
 
-MSG_HEIGHT = 7
+MSG_HEIGHT = 6
 msg_width = screen_width - BAR_WIDTH - 2
 
 colors = {

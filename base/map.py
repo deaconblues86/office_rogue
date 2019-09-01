@@ -20,10 +20,7 @@ class Tile():
         self.contents.append(obj)
 
     def remove_content(self, obj):
-        print(obj.name)
-        print(obj)
-        self.contents = [x for x in self.contents if x is not obj]
-        print(self.contents)
+        self.contents = list(filter(lambda x: x is not obj, self.contents))
 
     def adjacent(self):
         return [
