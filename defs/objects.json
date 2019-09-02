@@ -23,8 +23,11 @@
         "color": "yellow",
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
-        "use_func": "vend_func",
-        "obj_type": "appliance"
+        "stock": [
+            {"name": "Water Bottle", "max_stock": 4},
+            {"name": "Snack", "max_stock": 4}
+        ],
+        "obj_type": "vendor"
     },
     "C": {
         "name": "Coffee Maker",
@@ -127,5 +130,21 @@
         "char": "W",
         "color": "pink",
         "obj_type": "static"
+    },
+    "Water Bottle": {
+        "name": "Water Bottle",
+        "char": "!",
+        "color": "light_blue",
+        "satisfies": ["thirst"],
+        "use_func": "water_func",
+        "obj_type": "item"
+    },
+    "Snack": {
+        "name": "Snack",
+        "char": "^",
+        "color": "light_green",
+        "satisfies": ["hunger"],
+        "use_func": "snack_func",
+        "obj_type": "item"
     }
 }

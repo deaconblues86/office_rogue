@@ -13,7 +13,8 @@ from constants import (
     msg_width,
     colors,
     female_names,
-    male_names
+    male_names,
+    game_objects
 )
 from utils import object_funcs
 
@@ -79,6 +80,9 @@ class BaseObject():
         # Asks GameInstance "What's Next to Me?"
         return self.game.get_adjacent(self)
 
+    def broadcast(self, message, color):
+        self.game.log_message(message, color)
+
 
 class Item(BaseObject):
     def __init__(self, satisfies, use_func, owner=None, *args, **kwargs):
@@ -96,10 +100,37 @@ class Item(BaseObject):
         self.durability -= wear
 
     def use_func(self, target):
-        self.game.broadcast(f"{self.name.capitalize} has no use!", "red")
+        self.broadcast(f"{self.name.capitalize} has no use!", "red")
 
-    def broadcast(self, message, color):
-        self.game.log_message(message, color)
+
+class Vendor(BaseObject):
+    def __init__(self, satisfies, stock, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.satisfies = satisfies
+        self.stock = stock
+        self.inventory = []
+        self.restock_items()
+
+    def restock_items(self):
+        for item in self.stock:
+            curr_stock = len(list(filter(lambda x: x.name == item["name"], self.inventory)))
+            obj_params = game_objects[item["name"]]
+            obj_params.update({"game": self, "x": 0, "y": 0})
+            while curr_stock < item["max_stock"]:
+                curr_stock += 1
+                obj = Item(**obj_params)
+                self.inventory.append(obj)
+
+    def use(self, user):
+        if user is self.game.player:
+            self.game.init_popup(self.name.capitalize(), self.inventory, self.dispense)
+
+    def dispense(self, item, user=None):
+        if not user:
+            user = self.game.player
+        item.owner = user
+        user.inventory.append(item)
+        user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
 
 
 class Mob(BaseObject):
@@ -141,7 +172,6 @@ class Mob(BaseObject):
         dest_x = self.x + mod_x
         dest_y = self.y + mod_y
         dest_tile = self.game.get_tile(dest_x, dest_y)
-        print([(c.name, c.blocks) for c in dest_tile.contents])
         if not dest_tile.blocked:
             self.game.remove_tile_content(self)
             self.x = dest_tile.x
@@ -149,7 +179,7 @@ class Mob(BaseObject):
             self.game.add_tile_content(self)
         else:
             # Assumes one usable object per tile
-            appliances = [c for c in dest_tile.contents if getattr(c, "use_func")]
+            appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
             if appliances:
                 appliances[0].use(self)
 
@@ -164,6 +194,7 @@ class Mob(BaseObject):
 
     def drop_item(self, item):
         self.inventory = list(filter(lambda x: x is not item, self.inventory))
+        item.x, item.y = self.x, self.y
         self.game.add_tile_content(item)
 
     def inventory_full(self):
@@ -208,11 +239,10 @@ class PopUpMenu():
         cls.title = title
         cls.text = ""
         letter_index = ord('a')
-        print(options)
         for option_text in options:
             cls.text += f"{chr(letter_index)}: {option_text}\n"
             letter_index += 1
-        cls.text += "q: Quit"
+        cls.text += "x: Exit"
 
     @classmethod
     def draw_popup(cls, root):
@@ -241,6 +271,7 @@ class GameInstance():
         self.world_objs = {
             ObjType.static: [],
             ObjType.appliance: [],
+            ObjType.vendor: [],
             ObjType.item: [],
             ObjType.mob: []
         }
@@ -249,12 +280,11 @@ class GameInstance():
 
     def render_all(self):
         for obj_type in self.world_objs:
-            print(obj_type)
             for obj in self.world_objs[obj_type]:
                 self.render(obj)
 
         if self.popup_open:
-            self.render_inventory()
+            self.render_popup()
 
     def render(self, obj):
         self.root_console.print(x=obj.x, y=obj.y, string=obj.char, fg=obj.color, bg=colors["black"])
@@ -270,9 +300,9 @@ class GameInstance():
         top = getattr(self.player, f"max_{stat}")
         ratio = val / top
         filled = int(BAR_WIDTH * ratio)
-        if count > 4:
+        if count > 3:
             x = BAR_WIDTH + 1
-            y = y - 4
+            y = y - 3
         self.root_console.draw_rect(
             x=x, y=y,
             width=BAR_WIDTH,
@@ -305,8 +335,14 @@ class GameInstance():
                 self.game_msgs.pop(0)
             self.game_msgs.append((line, color))
 
-    def render_inventory(self):
+    def render_popup(self):
         self.popup.draw_popup(self.root_console)
+
+    def init_popup(self, title, options, popup_func):
+        self.popup_open = True
+        self.popup_options = options
+        self.popup_func = popup_func
+        self.popup.load_options(title, [x.name for x in self.popup_options])
 
     def player_move_or_use(self, x, y):
         self.player.move(x, y)
@@ -321,6 +357,8 @@ class GameInstance():
     def add_tile_content(self, obj):
         self.game_map.place_object(obj)
         self.world_objs[obj.type].append(obj)
+        if obj.type is ObjType.item:
+            print([x.name for x in self.world_objs[obj.type]])
 
     def remove_tile_content(self, obj):
         self.game_map.remove_object(obj)
@@ -339,6 +377,8 @@ class GameInstance():
             obj = Item(**obj_params)
         elif obj_params["obj_type"] == "appliance":
             obj = Item(**obj_params)
+        elif obj_params["obj_type"] == "vendor":
+            obj = Vendor(**obj_params)
         elif obj_params["obj_type"] == "mob":
             obj = Mob(**obj_params)
 
@@ -401,7 +441,7 @@ class GameInstance():
 
         # Handle pop up options
         if self.popup_open:
-            if key_map.get(key) == "exit" or key == ord("q"):
+            if key_map.get(key) == "exit" or key == ord("x"):
                 self.popup_open = False
                 return False
 
@@ -443,87 +483,18 @@ class GameInstance():
                 pass
 
             elif key == ord("i"):
-                self.popup_open = True
-                self.popup_options = self.player.inventory
-                self.popup_func = self.player.use_item
-                self.popup.load_options("Inventory", [x.name for x in self.popup_options])
-                # chosen_item = inventory_menu(
-                #     "Press the specified key to use an item or any other to cancel.\n"
-                # )
-                # if chosen_item is not None:
-                #     print("using:", chosen_item.name)
-                #     player.use_item(chosen_item)
-                #     print(
-                #         "used:",
-                #         chosen_item.name,
-                #         [x.name for x in player.fighter.inventory],
-                #     )
-                # else:
-                # return "didnt-take-turn"
+                self.init_popup("Inventory", self.player.inventory, self.player.use_item)
 
             elif key == ord("g"):
-                print("pick up")
-                self.popup_open = True
-                self.popup_options = self.get_tile(self.player.x, self.player.y).contents
-                self.popup_func = self.player.pickup_item
-                self.popup.load_options("Pick Up Item", [x.name for x in self.popup_options])
-                # found = []
-                # options = []
-                # for obj in objects:
-                #     if (obj.x, obj.y) == (player.x, player.y) and obj.item:
-                #         found.append(obj)
-                #         options.append(obj.name)
-
-                # if found == []:
-                #     options.append("No items to pick up...")
-
-                # chosen_item = menu(
-                #     "Press the specified key to pick up an item or any other to cancel",
-                #     options,
-                #     INVENTORY_WIDTH,
-                # )
-                # if chosen_item is not None and found != []:
-                #     if len(player.fighter.inventory) < MAX_INVENTORY:
-                #         print("picking:", found[chosen_item].name)
-                #         player.fighter.inventory.append(found[chosen_item])
-                #         objects.remove(found[chosen_item])
-                #         message(
-                #             "Picked up " + found[chosen_item].name, libtcod.light_violet
-                #         )
-                #         print(
-                #             "picked:",
-                #             found[chosen_item].name,
-                #             [x.name for x in player.fighter.inventory],
-                #         )
-                #     else:
-                #         message("Your Inventory is full", libtcod.dark_red)
-                #         return "didnt-take-turn"
-
-                # else:
-                #     return "didnt-take-turn"
+                self.init_popup(
+                    "Pick Up Item",
+                    self.get_tile(self.player.x, self.player.y).contents,
+                    self.player.pickup_item
+                )
 
             elif key == ord("d"):
-                print("drop")
-                # chosen_item = inventory_menu(
-                #     "Press the specified key to drop an item or any other to cancel.\n"
-                # )
-                # if chosen_item is not None:
-                #     print(
-                #         "dropping:",
-                #         chosen_item.name,
-                #         [x.name for x in player.fighter.inventory],
-                #     )
-                #     player.fighter.inventory.remove(chosen_item)
-                #     chosen_item.owner = None
-                #     chosen_item.x = player.x
-                #     chosen_item.y = player.y
-                #     objects.append(chosen_item)
-                #     message("You dropped the " + chosen_item.name, libtcod.light_violet)
-                #     print(
-                #         "dropped:",
-                #         chosen_item.name,
-                #         [x.name for x in player.fighter.inventory],
-                #     )
-
-                # else:
-                #     return "didnt-take-turn"
+                self.init_popup(
+                    "Drop Item",
+                    self.player.inventory,
+                    self.player.drop_item
+                )

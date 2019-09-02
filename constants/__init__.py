@@ -36,9 +36,9 @@ STATS = [
     ("social", "yellow"),
     ("energy", "violet"),
     ("hunger", "red"),
-    ("hunger", "blue"),
-    ("hunger", "grey"),
-    ("hunger", "sepia")
+    ("thirst", "blue"),
+    ("bladder", "grey"),
+    ("bowels", "sepia")
 ]
 
 MSG_HEIGHT = 6
@@ -70,11 +70,12 @@ colors = {
 room_types = {}
 with open("defs/rooms.txt") as room_file:
     for line in room_file:
-        line = line.strip().split("\t")
+        line = line.strip()
+        if not line:
+            continue
 
+        line = line.split("\t")
         if len(line) == 1:
-            if line == [""]:
-                continue
             r = line[0]
             room_types[r] = []
         else:

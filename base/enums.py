@@ -8,5 +8,6 @@ class ObjType(Enum):
     '''
     mob = 1
     item = 2
-    appliance = 3
-    static = 4
+    vendor = 3
+    appliance = 4
+    static = 5
