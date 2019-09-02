@@ -3,6 +3,7 @@ import textwrap
 
 from tcod.console import Console
 from tcod.event import EventDispatch
+from base.enums import ObjType
 from constants import (
     map_width,
     map_height,
@@ -58,13 +59,14 @@ class Dispatcher(EventDispatch):
 
 
 class BaseObject():
-    def __init__(self, game, name, x, y, char, color, blocks=False, durability=100, **kwargs):
+    def __init__(self, game, name, x, y, char, color, obj_type, blocks=False, durability=100, **kwargs):
         self.game = game
         self.name = name
         self.x = x
         self.y = y
         self.char = char
         self.color = colors[color]
+        self.type = ObjType[obj_type]
         self.blocks = blocks
         self.blocks_sight = blocks
         if kwargs.get("blocks_sight"):
@@ -236,15 +238,19 @@ class GameInstance():
         self.popup = PopUpMenu
         self.popup_open = False
 
-        self.mobs = []
-        self.items = []
-        self.appliances = []
-        self.static = []
+        self.world_objs = {
+            ObjType.static: [],
+            ObjType.appliance: [],
+            ObjType.item: [],
+            ObjType.mob: []
+        }
+
         self.game_msgs = []
 
     def render_all(self):
-        for obj_types in [self.static, self.appliances, self.items, self.mobs]:
-            for obj in obj_types:
+        for obj_type in self.world_objs:
+            print(obj_type)
+            for obj in self.world_objs[obj_type]:
                 self.render(obj)
 
         if self.popup_open:
@@ -314,9 +320,11 @@ class GameInstance():
 
     def add_tile_content(self, obj):
         self.game_map.place_object(obj)
+        self.world_objs[obj.type].append(obj)
 
     def remove_tile_content(self, obj):
         self.game_map.remove_object(obj)
+        self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 
     def delete_object(self, obj):
         self.remove_tile_content(obj)
@@ -325,18 +333,14 @@ class GameInstance():
     def create_object(self, x, y, obj_params):
         obj_params.update({"game": self, "x": x, "y": y})
 
-        if obj_params["type"] == "base":
+        if obj_params["obj_type"] == "static":
             obj = BaseObject(**obj_params)
-            self.static.append(obj)
-        elif obj_params["type"] == "item":
+        elif obj_params["obj_type"] == "item":
             obj = Item(**obj_params)
-            self.items.append(obj)
-        elif obj_params["type"] == "appliance":
+        elif obj_params["obj_type"] == "appliance":
             obj = Item(**obj_params)
-            self.appliances.append(obj)
-        elif obj_params["type"] == "mob":
+        elif obj_params["obj_type"] == "mob":
             obj = Mob(**obj_params)
-            self.mobs.append(obj)
 
         self.add_tile_content(obj)
 
@@ -347,7 +351,7 @@ class GameInstance():
             "char": "@",
             "satisfies": ['social'],
             "blocks": True,
-            "type": "mob",
+            "obj_type": "mob",
             "social": random.randrange(25, 100),
             "hunger": random.randrange(25, 100),
             "thirst": random.randrange(25, 100),

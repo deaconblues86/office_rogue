@@ -25,6 +25,9 @@ with tcod.console_init_root(
         game.render_bars()
         game.render_messages()
         tcod.console_flush()  # Show the console.
+
+        # TODO: While loop currently runs twice for each key press (up and down)
+        # May not be a problem, but need to watch game ticks
         for event in Event.wait():
             dispatcher.dispatch(event)
 

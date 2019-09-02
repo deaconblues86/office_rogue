@@ -6,7 +6,7 @@
         "blocks": true,
         "satisfies": ["none"],
         "use_func": "none",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "=": {
         "name": "Desk",
@@ -15,7 +15,7 @@
         "satisfies": ["work"],
         "blocks": true,
         "use_func": "desk_func",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "V": {
         "name": "Vending Machine",
@@ -24,7 +24,7 @@
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
         "use_func": "vend_func",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "C": {
         "name": "Coffee Maker",
@@ -33,7 +33,7 @@
         "satisfies": ["energy", "thirst"],
         "blocks": true,
         "use_func": "coffee_func",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "F": {
         "name": "Refrigerator",
@@ -42,7 +42,7 @@
         "blocks": true,
         "satisfies": ["none"],
         "use_func": "none",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "M": {
         "name": "Microwave",
@@ -51,7 +51,7 @@
         "blocks": true,
         "satisfies": ["none"],
         "use_func": "none",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "t": {
         "name": "Terminal",
@@ -60,7 +60,7 @@
         "satisfies": ["work"],
         "blocks": true,
         "use_func": "terminal_func",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "U": {
         "name": "Urinal",
@@ -69,7 +69,7 @@
         "blocks": true,
         "satisfies": ["bladder"],
         "use_func": "urinal_func",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "H": {
         "name": "Sink", 
@@ -78,7 +78,7 @@
         "blocks": true,
         "satisfies": ["none"],
         "use_func": "none",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "T": {
         "name": "Toilet",
@@ -87,45 +87,45 @@
         "blocks": true,
         "satisfies": ["bladder", "bowels"],
         "use_func": "toilet_func",
-        "type": "appliance"
+        "obj_type": "appliance"
     },
     "x": {
         "name": "Chair",
         "char": "x",
         "color": "dark_yellow",
         "blocks": false,
-        "type": "base"
+        "obj_type": "static"
     },
     "+": {
         "name": "Door",
         "char": "+",
         "color": "light_sepia",
-        "type": "base"
+        "obj_type": "static"
     },
     "#": {
         "name": "Wall",
         "char": "#",
         "color": "white",
         "blocks": true,
-        "type": "base"
+        "obj_type": "static"
     },
     "~": {
         "name": "Grass",
         "char": "~",
         "color": "light_green",
         "blocks": false,
-        "type": "base"
+        "obj_type": "static"
     },
     "Mens": {
         "name": "tag",
         "char": "M",
         "color": "light_blue",
-        "type": "base"
+        "obj_type": "static"
     },
     "Womens": {
         "name": "tag",
         "char": "W",
         "color": "pink",
-        "type": "base"
+        "obj_type": "static"
     }
 }

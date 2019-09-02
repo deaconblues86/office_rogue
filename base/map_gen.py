@@ -10,6 +10,7 @@ from constants import (
     map_width,
     map_height
 )
+from base.enums import ObjType
 from base.map import Rect, Tile
 
 
@@ -193,7 +194,7 @@ class MapGenerator():
 
     def generate_coworkers(self):
         # Generates Player and Coworks and assigned Terminals
-        terminals = [x for x in self.game.appliances if x.name == 'Terminal']
+        terminals = [x for x in self.game.world_objs[ObjType["appliance"]] if x.name == 'Terminal']
 
         player_terminal = terminals.pop(0)
         adj_tiles = [x for x in player_terminal.adjacent() if not x.blocked]
