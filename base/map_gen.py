@@ -14,30 +14,37 @@ from base.enums import ObjType
 from base.map import Rect, Tile
 
 
-def room_flip(rows, flip, x_int, y_int):
-    if flip > 75:
-        r = rows.pop(0)
-        val = r.pop(0)
-        rows.append(r)
-        return val, rows
-
-    elif flip > 50:
-        r = rows.pop(-1)
-        val = r.pop(-1)
-        rows.insert(0, r)
-        return val, rows
-
-    elif flip > 25:
-        if rows[0] == []:
-            rows.pop(0)
-        val = rows[0].pop(0)
-        return val, rows
-
-    else:
-        if rows[-1] == []:
+def room_flip(rows, flip):
+    # will be called while iterating over columns for each row
+    # If less than or equal to 50, rotate 90 or 270
+    # rooms are list or rows for each column
+    # 90
+    if flip < 25:
+        if not rows[-1]:
             rows.pop(-1)
-        val = rows[-1].pop(-1)
-        return val, rows
+        row = rows[-1]
+        val = row.pop(0)
+
+    # -90
+    elif flip < 50:
+        if not rows[0]:
+            rows.pop(0)
+        row = rows[0]
+        val = row.pop(-1)
+
+    # 360
+    elif flip < 75:
+        row = rows.pop(-1)
+        val = row.pop(-1)
+        rows.insert(0, row)
+
+    # As written (doesn't work)
+    else:
+        row = rows.pop(0)
+        val = row.pop(0)
+        rows.append(row)
+
+    return val.strip(), rows
 
 
 class MapGenerator():
@@ -96,13 +103,12 @@ class MapGenerator():
             room_index = random.randrange(0, len(room_types))
             rtype = list(room_types)[room_index]
 
-            # Subtracting 1 as the len includes the starting cell (x & y being passed)
-            w = len(room_types[rtype][0]) - 1
-            h = len(room_types[rtype]) - 1
+            w = len(room_types[rtype][0])
+            h = len(room_types[rtype])
 
             flip = random.randrange(0, 100)
 
-            if flip <= 50:
+            if flip < 50:
                 if num_rooms != 0:
                     x += HALL_WIDTH
                 new_room = Rect(x, y, h, w)
@@ -124,13 +130,13 @@ class MapGenerator():
                 if rtype in LIMITED_ROOMS:
                     del room_types[rtype]
 
-                hall = Rect(new_room.x1, new_room.y2 + 1, new_room.w, HALL_WIDTH - 1)
+                hall = Rect(new_room.x1, new_room.y2, new_room.w, HALL_WIDTH)
 
                 if hall.y2 < self.interior.y2:
                     # create_hall(hall)
                     h_halls.append(hall)
 
-                x = new_room.x2 + 1
+                x = new_room.x2
 
             # Running through subsequent rows
             if next_row:
@@ -218,18 +224,21 @@ class MapGenerator():
             temp_count -= 1
 
     def create_room(self, room, rtype, flip):
-        x_int = 0
-        y_int = 0
 
-        rows = []
-        for r in room_types[rtype]:
-            rows.append(list(r))
-
+        rows = [list(r) for r in room_types[rtype]]
+        print(rtype, flip)
+        print([x for x in range(room.x1, room.x2 + 1)])
+        print([x for x in range(room.y1, room.y2 + 1)])
         for x in range(room.x1, room.x2 + 1):
             for y in range(room.y1, room.y2 + 1):
-                val, rows = room_flip(rows, flip, x_int, y_int)
+                try:
+                    val, rows = room_flip(rows, flip)
+                except IndexError:
+                    val = None
+
                 if not val:
                     continue
+
                 elif val == "~":
                     self.get_tile(x, y).ttype = "grass"
                     obj = game_objects[val]
@@ -243,6 +252,7 @@ class MapGenerator():
                 else:
                     obj = game_objects[val]
                     self.game.create_object(x, y, obj)
+        print(f"Created Room => x: {room.x1} y: {room.y1} w: {room.w} h: {room.h} x2: {room.x2} y2: {room.y2}")
 
     def place_doors(self, room):
         # Placing Doors
@@ -317,8 +327,8 @@ class MapGenerator():
     def room_fill(self, x, y, max_w):
         possible_rooms = []
         for r in room_types:
-            w = len(room_types[r][0]) - 1
-            h = len(room_types[r]) - 1
+            w = len(room_types[r][0])
+            h = len(room_types[r])
 
             if w > max_w and h > max_w:
                 continue
@@ -334,7 +344,7 @@ class MapGenerator():
                     possible_rooms.append((new_room, r, flip, "man_nat"))
             else:
                 flip = random.randrange(0, 100)
-                if flip <= 50:
+                if flip < 50:
                     new_room = Rect(x, y, h, w)
                     if new_room.y2 < self.interior.y2:
                         possible_rooms.append((new_room, r, flip, "auto_rotate"))

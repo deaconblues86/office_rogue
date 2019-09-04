@@ -45,12 +45,12 @@ class Rect():
         self.x1 = x
         self.y1 = y
 
-        # Minus 1 since passed coord should be included
-        self.w = w - 1
-        self.h = h - 1
+        self.w = w
+        self.h = h
 
-        self.x2 = x + w
-        self.y2 = y + h
+        # Minus 1 since passed coord should be included
+        self.x2 = x + w - 1
+        self.y2 = y + h - 1
 
     # Center and Intersect used during world gen
     def center(self):

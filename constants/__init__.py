@@ -74,11 +74,11 @@ with open("defs/rooms.txt") as room_file:
         if not line:
             continue
 
-        line = line.split("\t")
-        if len(line) == 1:
-            r = line[0]
+        if line[:2] == "--":
+            r = line
             room_types[r] = []
         else:
+            line = list(line)
             room_types[r].append(line)
 
 with open("defs/objects.json") as obj_file:

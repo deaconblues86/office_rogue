@@ -76,7 +76,7 @@
     },
     "H": {
         "name": "Sink", 
-        "char": "S",
+        "char": "H",
         "color": "white",
         "blocks": true,
         "satisfies": ["none"],
