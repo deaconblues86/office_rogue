@@ -97,8 +97,11 @@ class Item(BaseObject):
             self.use_func = getattr(object_funcs, self.use_func_lookup, self.use_func)
 
     def use(self, user):
-        wear = self.use_func(user)
-        self.durability -= wear
+        if self.owner and self.owner is not user:
+            self.broadcast(f"{self.name} doesn't belong to {user.name}")
+        else:
+            wear = self.use_func(user)
+            self.durability -= wear
 
     def use_func(self, target):
         self.broadcast(f"{self.name.capitalize} has no use!", "red")
@@ -111,9 +114,10 @@ class Vendor(BaseObject):
     Vendor no longer loses durability like other items
     Instead stocks are drained
     '''
-    def __init__(self, satisfies, stock, *args, **kwargs):
+    def __init__(self, satisfies, stock, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
+        self.owner = owner
         self.stock = stock
         self.inventory = []
         self.restock_items()
@@ -200,6 +204,7 @@ class Mob(BaseObject):
     def determine_closest(self, targets):
         min_distance = None
         closest = None
+        targets = filter(lambda x: not x.owner or x.owner is self, targets)
         for target in targets:
             # If no empty tiles, occupado
             empty_tiles = list(filter(lambda x: not x.blocked, self.game.get_adjacent(target)))
@@ -233,10 +238,10 @@ class Mob(BaseObject):
                 return None
 
             targets = self.game.find_need(self.satisfying)
-            if not targets:
+            self.target = self.determine_closest(targets)
+            if not self.target:
                 self.broadcast(f"{self.name} can't satisfy {self.satisfying}")
             else:
-                self.target = self.determine_closest(targets)
                 self.state = f"satisfying {self.satisfying}"
                 self.path = self.game.find_path(self, self.target)
                 if not self.path:
