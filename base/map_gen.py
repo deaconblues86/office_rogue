@@ -1,6 +1,6 @@
 import random
 import tcod
-
+from numpy import array
 from constants import (
     room_types,
     game_objects,
@@ -187,16 +187,18 @@ class MapGenerator():
 
         self.generate_coworkers()
 
-    def generate_fov_path_map(self):
-        self.fov_map = tcod.map.Map(map_width, map_height)
-        for y in range(map_height):
-            for x in range(map_width):
-                self.fov_map.transparent[y, x] = self.tiles.blocked_sight
-
-        self.path_map = tcod.map.Map(map_width, map_height)
-        for y in range(map_height):
-            for x in range(map_width):
-                self.fov_map.transparent[y, x] = self.tiles.blocked
+    def generate_path_map(self):
+        passable = []
+        for x in range(len(self.tiles)):
+            passable_y = []
+            for y in range(len(self.tiles[x])):
+                if self.tiles[x][y].blocked:
+                    passable_y.append(0)
+                else:
+                    passable_y.append(1)
+            passable.append(passable_y)
+        passable = array(passable)
+        self.path_map = tcod.path.AStar(passable)
 
     def generate_coworkers(self):
         # Generates Player and Coworks and assigned Terminals

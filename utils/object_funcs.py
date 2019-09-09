@@ -1,5 +1,4 @@
 import tcod as libtcod
-from constants import MAX_INVENTORY
 
 
 def mob_death(mob):
@@ -9,9 +8,7 @@ def mob_death(mob):
     mob.blocks = False
     mob.name = "remains of " + mob.name
     mob.state = "fired"
-    # TODO: Handle Path Map
-    # libtcod.map_set_properties(path_map, mob.x, mob.y, True, True)
-    mob.send_to_back()
+    mob.fired = True
 
 
 def toilet_func(target):
@@ -105,60 +102,6 @@ def snack_func(target):
     return 25
 
 
-def vend_func(target):
-    chosen_index = None
-    vend_item = False
-    if target.is_player():
-        if target.inventory_full():
-            target.broadcast("Your Inventory is full", "dark_red")
-
-        else:
-            print("Need to make Menu")
-            # chosen_index = menu("Vending Machine:", ["Water", "Snack"], INVENTORY_WIDTH)
-
-    # TODO:  AI can use vend objects regardless of inventory -- Shouldn't be a problem for now since they'll preferencially use their inventory first
-    if chosen_index == 0 or target.state == "satisfying thirst":
-        print("Need to acutally create item")
-        # vend_item = item_object(
-        #     "Water Bottle",
-        #     target.x,
-        #     target.y,
-        #     "!",
-        #     libtcod.light_blue,
-        #     owner=target,
-        #     satisfies=["thirst"],
-        #     item=True,
-        #     use_func=water_func,
-        # )
-        target.broadcast(target.name.capitalize() + " gets a bottle of water", "white")
-
-    elif chosen_index == 1 or target.state == "satisfying hunger":
-        print("Need to acutally create item")
-        # vend_item = item_object(
-        #     "Snack",
-        #     target.x,
-        #     target.y,
-        #     "^",
-        #     libtcod.light_green,
-        #     owner=target,
-        #     satisfies=["hunger"],
-        #     item=True,
-        #     use_func=snack_func,
-        # )
-        target.broadcast(target.name.capitalize() + " gets a snack", "white")
-
-    if vend_item:
-        target.fighter.inventory.append(vend_item)
-        print(
-            target.name,
-            "vending:",
-            chosen_index,
-            vend_item.name,
-            [x.name for x in target.fighter.inventory],
-        )
-        target.state = "success: vend " + target.state
-
-        return libtcod.random_get_int(0, 5, 10)  # Wearing out object
-
-    # Returning zero to not damage vending machine if nothing is selected
-    return 0
+def clean_func(target):
+    # Function to handle clean up of waste & restore work for cleaners
+    pass

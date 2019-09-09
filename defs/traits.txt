@@ -1,8 +1,0 @@
-[sluggish]
-stat:energy_drain
-mod:1.25
-
-[chatty]
-stat:social_drain
-mod:1.25
-

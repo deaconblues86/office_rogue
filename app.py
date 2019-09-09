@@ -20,6 +20,7 @@ with tcod.console_init_root(
     map_gen = MapGenerator(game)
 
     map_gen.generate_map()
+    map_gen.generate_path_map()
     while True:
         game.render_all()
         game.render_bars()

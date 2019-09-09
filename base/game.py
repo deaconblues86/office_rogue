@@ -1,3 +1,4 @@
+import math
 import random
 import textwrap
 
@@ -80,7 +81,7 @@ class BaseObject():
         # Asks GameInstance "What's Next to Me?"
         return self.game.get_adjacent(self)
 
-    def broadcast(self, message, color):
+    def broadcast(self, message, color="white"):
         self.game.log_message(message, color)
 
 
@@ -104,6 +105,12 @@ class Item(BaseObject):
 
 
 class Vendor(BaseObject):
+    '''
+    Vendor's dispense items from a limited pool
+    Player may choose from menu while AI will choose first to satisfy
+    Vendor no longer loses durability like other items
+    Instead stocks are drained
+    '''
     def __init__(self, satisfies, stock, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
@@ -122,12 +129,25 @@ class Vendor(BaseObject):
                 self.inventory.append(obj)
 
     def use(self, user):
+        # Render Menu if player
         if user is self.game.player:
             self.game.init_popup(self.name.capitalize(), self.inventory, self.dispense)
+        else:
+            # AI will choose first item to satisfy their needs
+            desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
+            for item in desired:
+                self.dispense(item, user)
+                break
 
     def dispense(self, item, user=None):
         if not user:
             user = self.game.player
+        # TODO: Ensure AI will always use items in inventory first
+        # -- don't need them spinning their wheels with full inventories
+        if user.inventory_full():
+            user.broadcast(f"{user.name.capitalize()}'s inventory is full", "dark_red")
+            return None
+        self.inventory = list(filter(lambda x: x is not item, self.inventory))
         item.owner = user
         user.inventory.append(item)
         user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
@@ -135,6 +155,7 @@ class Vendor(BaseObject):
 
 class Mob(BaseObject):
     max_inventory = 4
+    needs = ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work"]
 
     def __init__(self, social, hunger, thirst, bladder, bowels, energy, gender, job, work_objs, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -150,6 +171,14 @@ class Mob(BaseObject):
         self.job = job
         self.work_objs = work_objs
         self.inventory = []
+        self.path = []
+
+        # AI Controls
+        # - target: That which the AI moves towards and plans to use
+        # - satisfying: The goal to be fulfilled upon usage
+        self.target = None
+        self.satisfying = None
+        self.fired = False
 
         self.max_social = social
         self.max_hunger = hunger
@@ -160,7 +189,7 @@ class Mob(BaseObject):
         self.max_work = 100
 
         self.social_gain = int(self.max_social * 0.2)
-        self.social_drain = 1
+        self.social_drain = -1
         self.hunger_drain = -1
         self.thirst_drain = -2
         self.bladder_drain = -2
@@ -168,15 +197,108 @@ class Mob(BaseObject):
         self.energy_drain = -1
         self.work_drain = -1
 
-    def move(self, mod_x, mod_y):
-        dest_x = self.x + mod_x
-        dest_y = self.y + mod_y
-        dest_tile = self.game.get_tile(dest_x, dest_y)
+    def determine_closest(self, targets):
+        min_distance = None
+        closest = None
+        for target in targets:
+            # If no empty tiles, occupado
+            empty_tiles = list(filter(lambda x: not x.blocked, self.game.get_adjacent(target)))
+            if not empty_tiles:
+                continue
+
+            dx = target.x - self.x
+            dy = target.y - self.y
+            distance = math.sqrt(dx**2 + dy**2)
+            if min_distance is None or distance < min_distance:
+                min_distance = distance
+                closest = target
+
+        return closest
+
+    def check_needs(self):
+        if not self.target:
+            lowest_status = 1
+            for need in self.needs:
+                if need == "social":
+                    continue
+                perc = getattr(self, need) / getattr(self, f"max_{need}")
+                if perc < lowest_status:
+                    lowest_status = perc
+                    self.satisfying = need
+
+            # First check inventory
+            in_inv = list(filter(lambda x: self.satisfying in x.satisfies, self.inventory))
+            if in_inv:
+                self.use_item(in_inv[0])
+                return None
+
+            targets = self.game.find_need(self.satisfying)
+            if not targets:
+                self.broadcast(f"{self.name} can't satisfy {self.satisfying}")
+            else:
+                self.target = self.determine_closest(targets)
+                self.state = f"satisfying {self.satisfying}"
+                self.path = self.game.find_path(self, self.target)
+                if not self.path:
+                    self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
+                    self.target = None
+                    self.state = ""
+
+    def tick_needs(self):
+        self.social = max(self.social_drain + self.social, 0)
+        self.hunger = max(self.hunger_drain + self.hunger, 0)
+        self.thirst = max(self.thirst_drain + self.thirst, 0)
+        self.bladder = max(self.bladder_drain + self.bladder, 0)
+        self.bowels = max(self.bowels_drain + self.bowels, 0)
+        self.energy = max(self.energy_drain + self.energy, 0)
+        self.work = max(self.work_drain + self.work, 0)
+
+        if self.work <= 0:
+            object_funcs.mob_death(self)
+
+        if self.bladder <= 0:
+            urine = game_objects["Urine"]
+            self.game.create_object(self.x, self.y, urine)
+            self.bladder = self.max_bladder
+
+        if self.bowels <= 0:
+            poo = game_objects["Poo"]
+            self.game.create_object(self.x, self.y, poo)
+            self.bowels = self.max_bowels
+
+    def take_turn(self):
+        if not self.fired:
+            self.tick_needs()
+            self.check_needs()
+            self.move_to_target()
+
+    def move_to_target(self):
+        if not self.target:
+            return None
+
+        # Dest. has been reached -> use target
+        if not self.path:
+            next_tile = self.game.get_tile(self.target.x, self.target.y)
+            self.move(next_tile)
+            self.target = None
+            self.state = ""
+            return None
+
+        next_tile = self.game.get_tile(*self.path[0])
+        if not next_tile.blocked:
+            self.move(next_tile)
+            self.path.pop(0)
+        else:
+            self.broadcast(f"{self.name} is waiting...")
+
+    def move(self, dest_tile):
         if not dest_tile.blocked:
             self.game.remove_tile_content(self)
+            self.game.update_pathmap(self.x, self.y)
             self.x = dest_tile.x
             self.y = dest_tile.y
             self.game.add_tile_content(self)
+            self.game.update_pathmap(self.x, self.y)
         else:
             # Assumes one usable object per tile
             appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
@@ -187,6 +309,7 @@ class Mob(BaseObject):
         item.use(self)
         if not item.durability:
             self.inventory = list(filter(lambda x: x is not item, self.inventory))
+            del item
 
     def pickup_item(self, item):
         self.game.remove_tile_content(item)
@@ -278,6 +401,13 @@ class GameInstance():
 
         self.game_msgs = []
 
+    def run_coworkers(self):
+        for worker in self.world_objs[ObjType.mob]:
+            if worker is self.player:
+                worker.tick_needs()
+                continue
+            worker.take_turn()
+
     def render_all(self):
         for obj_type in self.world_objs:
             for obj in self.world_objs[obj_type]:
@@ -344,8 +474,33 @@ class GameInstance():
         self.popup_func = popup_func
         self.popup.load_options(title, [x.name for x in self.popup_options])
 
-    def player_move_or_use(self, x, y):
-        self.player.move(x, y)
+    def find_need(self, need):
+        satisfies = []
+        for obj_type in [ObjType.appliance, ObjType.vendor, ObjType.item]:
+            for obj in self.world_objs[obj_type]:
+                if need in obj.satisfies:
+                    satisfies.append(obj)
+
+        return satisfies
+
+    def find_path(self, seeker, target):
+        # Pathing to first empty adjacent tile of target
+        empty_tiles = list(filter(lambda x: not x.blocked, self.get_adjacent(target)))
+        path = self.game_map.path_map.get_path(seeker.x, seeker.y, empty_tiles[0].x, empty_tiles[0].y)
+        return path
+
+    def update_pathmap(self, x, y):
+        # Flips pathmap flags
+        if self.game_map.path_map.cost[x, y]:
+            self.game_map.path_map.cost[x, y] = 0
+        else:
+            self.game_map.path_map.cost[x, y] = 1
+
+    def player_move_or_use(self, mod_x, mod_y):
+        dest_x = self.player.x + mod_x
+        dest_y = self.player.y + mod_y
+        dest_tile = self.get_tile(dest_x, dest_y)
+        self.player.move(dest_tile)
 
     def get_tile(self, req_x, req_y):
         return self.game_map.get_tile(req_x, req_y)
@@ -357,8 +512,6 @@ class GameInstance():
     def add_tile_content(self, obj):
         self.game_map.place_object(obj)
         self.world_objs[obj.type].append(obj)
-        if obj.type is ObjType.item:
-            print([x.name for x in self.world_objs[obj.type]])
 
     def remove_tile_content(self, obj):
         self.game_map.remove_object(obj)
@@ -498,3 +651,5 @@ class GameInstance():
                     self.player.inventory,
                     self.player.drop_item
                 )
+
+            self.run_coworkers()

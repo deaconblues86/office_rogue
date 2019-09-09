@@ -12,10 +12,8 @@
         "name": "Desk",
         "char": "=",
         "color": "yellow",
-        "satisfies": ["work"],
         "blocks": true,
-        "use_func": "desk_func",
-        "obj_type": "appliance"
+        "obj_type": "static"
     },
     "V": {
         "name": "Vending Machine",
@@ -145,6 +143,22 @@
         "color": "light_green",
         "satisfies": ["hunger"],
         "use_func": "snack_func",
+        "obj_type": "item"
+    },
+    "Urine": {
+        "name": "Urine",
+        "char": "%",
+        "color": "light_yellow",
+        "satisfies": ["clean"],
+        "use_func": "clean_func",
+        "obj_type": "item"
+    },
+    "Poo": {
+        "name": "Poo",
+        "char": "%",
+        "color": "light_sepia",
+        "satisfies": ["clean"],
+        "use_func": "clean_func",
         "obj_type": "item"
     }
 }
