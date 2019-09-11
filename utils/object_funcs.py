@@ -1,10 +1,21 @@
-import tcod as libtcod
+from random import randint
+from contants import colors
 
 
-def mob_death(mob):
+def mob_fired(mob):
     mob.broadcast(mob.name.capitalize() + " is fired!", "orange")
     mob.char = "%"
-    mob.color = libtcod.dark_red
+    mob.color = colors["dark_red"]
+    mob.blocks = False
+    mob.name = "remains of " + mob.name
+    mob.state = "fired"
+    mob.fired = True
+
+
+def mob_quits(mob):
+    mob.broadcast(mob.name.capitalize() + " quits!", "orange")
+    mob.char = "%"
+    mob.color = colors["dark_red"]
     mob.blocks = False
     mob.name = "remains of " + mob.name
     mob.state = "fired"
@@ -16,14 +27,14 @@ def toilet_func(target):
     target.bowels = target.max_bowels
     target.broadcast(target.name.capitalize() + " uses the toilet", "white")
     target.state = "success: " + target.state
-    return libtcod.random_get_int(0, 5, 10)  # Wearing out object
+    return randint(5, 10)  # Wearing out object
 
 
 def urinal_func(target):
     target.bladder = target.max_bladder
     target.broadcast(target.name.capitalize() + " uses the urinal", "white")
     target.state = "success: " + target.state
-    return libtcod.random_get_int(0, 5, 10)  # Wearing out object
+    return randint(5, 10)  # Wearing out object
 
 
 def terminal_func(target):
@@ -33,7 +44,7 @@ def terminal_func(target):
     target.energy = max(int(target.energy - (work_gain * 0.25)), 0)
     target.broadcast(target.name.capitalize() + " uses their terminal", "white")
     target.state = "success: " + target.state
-    return libtcod.random_get_int(0, 5, 10)  # Wearing out object
+    return randint(5, 10)  # Wearing out object
 
 
 def desk_func(target):
@@ -42,7 +53,7 @@ def desk_func(target):
     target.work = min(target.work + work_gain, target.max_work)
     target.energy = max(int(target.energy - (work_gain * 0.5)), 0)
     target.broadcast(target.name.capitalize() + " uses their desk", "white")
-    return libtcod.random_get_int(0, 5, 10)  # Wearing out object
+    return randint(5, 10)  # Wearing out object
 
 
 def repair_func(worker, target):
@@ -73,7 +84,7 @@ def coffee_func(target):
     )
     target.broadcast(target.name.capitalize() + " gets some coffee", "white")
     target.state = "success: " + target.state
-    return libtcod.random_get_int(0, 5, 10)  # Wearing out object
+    return randint(5, 10)  # Wearing out object
 
 
 def water_func(target):
@@ -104,4 +115,7 @@ def snack_func(target):
 
 def clean_func(target):
     # Function to handle clean up of waste & restore work for cleaners
-    pass
+    # TODO: Use Funcs tend to operate on the user, this one needs to operate on itself
+    # Dump in favor of something like a work_func
+    # Could be repurpsed to impact mood, but won't be used at present since doesn't block
+    return 100

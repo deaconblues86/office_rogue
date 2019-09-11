@@ -106,7 +106,7 @@ class MapGenerator():
             w = len(room_types[rtype][0])
             h = len(room_types[rtype])
 
-            flip = random.randrange(0, 100)
+            flip = random.randint(0, 100)
 
             if flip < 50:
                 if num_rooms != 0:
@@ -158,9 +158,7 @@ class MapGenerator():
                         possible_rooms = self.room_fill(prev_x, hall.y2 + 1, diff_x)
 
                         if possible_rooms != []:
-                            picked_index = random.randrange(
-                                0, len(possible_rooms)
-                            )
+                            picked_index = random.randrange(0, len(possible_rooms))
                             picked_room = possible_rooms[picked_index]
 
                             self.create_room(picked_room[0], picked_room[1], picked_room[2])
@@ -337,15 +335,15 @@ class MapGenerator():
             elif w > max_w and h <= max_w:
                 new_room = Rect(x, y, h, w)
                 if new_room.y2 < self.interior.y2:
-                    flip = random.randrange(0, 50)
+                    flip = random.randint(0, 50)
                     possible_rooms.append((new_room, r, flip, "man_rotate"))
             elif w <= max_w and h > max_w:
                 new_room = Rect(x, y, w, h)
                 if new_room.y2 < self.interior.y2:
-                    flip = random.randrange(50, 100)
+                    flip = random.randint(50, 100)
                     possible_rooms.append((new_room, r, flip, "man_nat"))
             else:
-                flip = random.randrange(0, 100)
+                flip = random.randint(0, 100)
                 if flip < 50:
                     new_room = Rect(x, y, h, w)
                     if new_room.y2 < self.interior.y2:

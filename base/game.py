@@ -159,7 +159,7 @@ class Vendor(BaseObject):
 
 class Mob(BaseObject):
     max_inventory = 4
-    needs = ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work"]
+    needs = ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
 
     def __init__(self, social, hunger, thirst, bladder, bowels, energy, gender, job, work_objs, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -170,6 +170,7 @@ class Mob(BaseObject):
         self.bowels = bowels
         self.energy = energy
         self.work = 50
+        self.mood = 100
 
         self.gender = gender
         self.job = job
@@ -184,12 +185,14 @@ class Mob(BaseObject):
         self.satisfying = None
         self.fired = False
 
-        self.max_social = social
-        self.max_hunger = hunger
-        self.max_thirst = thirst
-        self.max_bladder = bladder
-        self.max_bowels = bowels
-        self.max_energy = energy
+        self.max_social = 100
+        self.max_hunger = 100
+        self.max_thirst = 100
+        self.max_bladder = 100
+        self.max_bowels = 100
+        self.max_energy = 100
+
+        self.max_mood = 100
         self.max_work = 100
 
         self.social_gain = int(self.max_social * 0.2)
@@ -199,6 +202,8 @@ class Mob(BaseObject):
         self.bladder_drain = -2
         self.bowels_drain = -1
         self.energy_drain = -1
+
+        self.mood_drain = 0
         self.work_drain = -1
 
     def determine_closest(self, targets):
@@ -250,26 +255,33 @@ class Mob(BaseObject):
                     self.state = ""
 
     def tick_needs(self):
-        self.social = max(self.social_drain + self.social, 0)
-        self.hunger = max(self.hunger_drain + self.hunger, 0)
-        self.thirst = max(self.thirst_drain + self.thirst, 0)
-        self.bladder = max(self.bladder_drain + self.bladder, 0)
-        self.bowels = max(self.bowels_drain + self.bowels, 0)
-        self.energy = max(self.energy_drain + self.energy, 0)
-        self.work = max(self.work_drain + self.work, 0)
+        if not self.game.turns % 4:
+            self.mood_drain = 0
+            for need in self.needs:
+                # Mood is ticked last - dependent on others
+                if need == "mood":
+                    continue
+                setattr(self, need, max(getattr(self, f"{need}_drain") + getattr(self, need), 0))
+                if getattr(self, need) == 0:
+                    self.mood_drain -= 1
 
-        if self.work <= 0:
-            object_funcs.mob_death(self)
+            # Draining mood based on unfufilled needs
+            self.mood += self.mood_drain
+            if self.work <= 0:
+                object_funcs.mob_fired(self)
 
-        if self.bladder <= 0:
-            urine = game_objects["Urine"]
-            self.game.create_object(self.x, self.y, urine)
-            self.bladder = self.max_bladder
+            if self.mood <= 0:
+                object_funcs.mob_quits(self)
 
-        if self.bowels <= 0:
-            poo = game_objects["Poo"]
-            self.game.create_object(self.x, self.y, poo)
-            self.bowels = self.max_bowels
+            if self.bladder <= 0:
+                urine = game_objects["Urine"]
+                self.game.create_object(self.x, self.y, urine)
+                self.bladder = self.max_bladder
+
+            if self.bowels <= 0:
+                poo = game_objects["Poo"]
+                self.game.create_object(self.x, self.y, poo)
+                self.bowels = self.max_bowels
 
     def take_turn(self):
         if not self.fired:
@@ -405,8 +417,10 @@ class GameInstance():
         }
 
         self.game_msgs = []
+        self.turns = 0
 
     def run_coworkers(self):
+        self.turns += 1
         for worker in self.world_objs[ObjType.mob]:
             if worker is self.player:
                 worker.tick_needs()
@@ -435,9 +449,9 @@ class GameInstance():
         top = getattr(self.player, f"max_{stat}")
         ratio = val / top
         filled = int(BAR_WIDTH * ratio)
-        if count > 3:
+        if count > 4:
             x = BAR_WIDTH + 1
-            y = y - 3
+            y = y - 4
         self.root_console.draw_rect(
             x=x, y=y,
             width=BAR_WIDTH,
@@ -550,15 +564,15 @@ class GameInstance():
             "satisfies": ['social'],
             "blocks": True,
             "obj_type": "mob",
-            "social": random.randrange(25, 100),
-            "hunger": random.randrange(25, 100),
-            "thirst": random.randrange(25, 100),
-            "bladder": random.randrange(75, 100),
-            "bowels": random.randrange(75, 100),
-            "energy": random.randrange(25, 100)
+            "social": random.randint(25, 100),
+            "hunger": random.randint(25, 100),
+            "thirst": random.randint(25, 100),
+            "bladder": random.randint(75, 100),
+            "bowels": random.randint(75, 100),
+            "energy": random.randint(25, 100)
         }
 
-        if random.randrange(0, 100) < 61:
+        if random.randint(0, 100) < 61:
             params["gender"] = "female"
             params["name"] = female_names[random.randrange(0, len(female_names))]
         else:
@@ -567,8 +581,8 @@ class GameInstance():
 
         # Rolling Dice on special jobs
         # TODO: Move special jobs out into Defs
-        if not creating_player and random.randrange(0, 100) < 26:
-            if random.randrange(0, 100) < 50:
+        if not creating_player and random.randint(0, 100) < 26:
+            if random.randint(0, 100) < 50:
                 params["job"] = "maintenance"
                 params["color"] = "light_blue"
                 params["work_objs"] = [

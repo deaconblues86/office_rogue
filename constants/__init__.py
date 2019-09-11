@@ -33,6 +33,7 @@ screen_height = map_height + 7
 BAR_WIDTH = 20
 STATS = [
     ("work", "green"),
+    ("mood", "orange"),
     ("social", "yellow"),
     ("energy", "violet"),
     ("hunger", "red"),
@@ -55,6 +56,8 @@ colors = {
     "light_red": tcod.light_red,
     "dark_red": tcod.dark_red,
     "orange": tcod.orange,
+    "light_orange": tcod.dark_orange,
+    "dark_orange": tcod.dark_orange,
     "yellow": tcod.yellow,
     "light_yellow": tcod.yellow,
     "dark_yellow": tcod.dark_yellow,
