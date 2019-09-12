@@ -1,3 +1,10 @@
+'''
+Contains current Item use functions and placeholder specialized work/mob functions
+Expectation is that work functions return the items wear so as to reduce its durability
+ - Given that most of this just targets specific Mob attributes and applies some kind
+   of modifier I'm sure it could dumped into a JSON format if so desired
+'''
+
 from random import randint
 from contants import colors
 
