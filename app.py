@@ -27,9 +27,15 @@ with tcod.console_init_root(
         game.render_messages()
         tcod.console_flush()  # Show the console.
 
+        if not game.player.occupied:
+            player_busy = None
+        else:
+            player_busy = 1
+
         # TODO: While loop currently runs twice for each key press (up and down)
         # May not be a problem, but need to watch game ticks
-        for event in Event.wait():
+        for event in Event.wait(player_busy):
             dispatcher.dispatch(event)
 
+        game.run_coworkers()
         root_console.clear()

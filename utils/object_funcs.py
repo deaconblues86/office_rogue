@@ -6,7 +6,7 @@ Expectation is that work functions return the items wear so as to reduce its dur
 '''
 
 from random import randint
-from contants import colors
+from constants import colors
 
 
 def mob_fired(mob):
@@ -34,6 +34,7 @@ def toilet_func(target):
     target.bowels = target.max_bowels
     target.broadcast(target.name.capitalize() + " uses the toilet", "white")
     target.state = "success: " + target.state
+    target.make_occupied(2)
     return randint(5, 10)  # Wearing out object
 
 
@@ -41,6 +42,7 @@ def urinal_func(target):
     target.bladder = target.max_bladder
     target.broadcast(target.name.capitalize() + " uses the urinal", "white")
     target.state = "success: " + target.state
+    target.make_occupied(1)
     return randint(5, 10)  # Wearing out object
 
 
@@ -51,6 +53,7 @@ def terminal_func(target):
     target.energy = max(int(target.energy - (work_gain * 0.25)), 0)
     target.broadcast(target.name.capitalize() + " uses their terminal", "white")
     target.state = "success: " + target.state
+    target.make_occupied(4)
     return randint(5, 10)  # Wearing out object
 
 
@@ -60,6 +63,7 @@ def desk_func(target):
     target.work = min(target.work + work_gain, target.max_work)
     target.energy = max(int(target.energy - (work_gain * 0.5)), 0)
     target.broadcast(target.name.capitalize() + " uses their desk", "white")
+    target.make_occupied(4)
     return randint(5, 10)  # Wearing out object
 
 
@@ -91,6 +95,7 @@ def coffee_func(target):
     )
     target.broadcast(target.name.capitalize() + " gets some coffee", "white")
     target.state = "success: " + target.state
+    target.make_occupied(1)
     return randint(5, 10)  # Wearing out object
 
 

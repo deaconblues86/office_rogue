@@ -184,6 +184,7 @@ class Mob(BaseObject):
         self.target = None
         self.satisfying = None
         self.fired = False
+        self.occupied = 0
 
         self.max_social = 100
         self.max_hunger = 100
@@ -255,6 +256,7 @@ class Mob(BaseObject):
                     self.state = ""
 
     def tick_needs(self):
+        self.make_occupied(-1)
         if not self.game.turns % 4:
             self.mood_drain = 0
             for need in self.needs:
@@ -284,10 +286,21 @@ class Mob(BaseObject):
                 self.bowels = self.max_bowels
 
     def take_turn(self):
-        if not self.fired:
-            self.tick_needs()
+        if self.fired:
+            return None
+
+        self.tick_needs()
+        # If not preoccupied, check needs and do stuff
+        if not self.occupied:
             self.check_needs()
             self.move_to_target()
+
+    def make_occupied(self, duration):
+        self.occupied = max(self.occupied + duration, 0)
+        if self.occupied:
+            self.char = '?'
+        else:
+            self.char = '@'
 
     def move_to_target(self):
         if not self.target:
@@ -516,6 +529,9 @@ class GameInstance():
             self.game_map.path_map.cost[x, y] = 1
 
     def player_move_or_use(self, mod_x, mod_y):
+        if self.player.occupied:
+            return None
+
         dest_x = self.player.x + mod_x
         dest_y = self.player.y + mod_y
         dest_tile = self.get_tile(dest_x, dest_y)
@@ -670,5 +686,3 @@ class GameInstance():
                     self.player.inventory,
                     self.player.drop_item
                 )
-
-            self.run_coworkers()
