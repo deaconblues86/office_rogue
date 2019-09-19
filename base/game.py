@@ -184,6 +184,8 @@ class Mob(BaseObject):
         # - satisfying: The goal to be fulfilled upon usage
         self.target = None
         self.satisfying = None
+        self.waiting = 0
+
         self.fired = False
         self.occupied = 0
 
@@ -227,6 +229,13 @@ class Mob(BaseObject):
 
         return closest
 
+    def calculate_target_path(self):
+        self.path = self.game.find_path(self, self.target)
+        if not self.path:
+            self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
+            self.target = None
+            self.state = ""
+
     def check_needs(self):
         if not self.target:
             lowest_status = 1
@@ -250,11 +259,7 @@ class Mob(BaseObject):
                 self.broadcast(f"{self.name} can't satisfy {self.satisfying}")
             else:
                 self.state = f"satisfying {self.satisfying}"
-                self.path = self.game.find_path(self, self.target)
-                if not self.path:
-                    self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
-                    self.target = None
-                    self.state = ""
+                self.calculate_target_path()
 
     def tick_needs(self):
         self.make_occupied(-1)
@@ -320,10 +325,24 @@ class Mob(BaseObject):
             self.move(next_tile)
             self.path.pop(0)
         else:
-            self.broadcast(f"{self.name} is waiting...")
+            # Try to swap places with blocking coworker
+            blockers = [x for x in next_tile.contents if x.blocks]
+            if len(blockers) == 1 and isinstance(blockers[0], Mob):
+                coworker = blockers[0]
+                if coworker.path and coworker.path[0] == (self.x, self.y):
+                    self.broadcast(f"{self.name} swapped with {coworker.name}...")
+                    coworker.move(self.game.get_tile(*coworker.path[0]), swapping=True)
+                    self.move(next_tile, swapping=True)
 
-    def move(self, dest_tile):
-        if not dest_tile.blocked:
+            self.waiting += 1
+            if self.waiting == 4:
+                self.broadcast(f"{self.name} is recalcing...")
+                self.calculate_target_path()
+            else:
+                self.broadcast(f"{self.name} is waiting...")
+
+    def move(self, dest_tile, swapping=False):
+        if not dest_tile.blocked or swapping:
             self.game.remove_tile_content(self)
             self.game.update_pathmap(self.x, self.y)
             self.x = dest_tile.x
