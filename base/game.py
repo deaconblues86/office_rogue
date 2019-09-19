@@ -21,6 +21,7 @@ from utils import object_funcs
 
 key_map = {
     27: "exit",
+    32: "space",
     1073741906: "up",
     1073741905: "down",
     1073741904: "left",
@@ -433,12 +434,13 @@ class GameInstance():
         self.turns = 0
 
     def run_coworkers(self):
-        self.turns += 1
-        for worker in self.world_objs[ObjType.mob]:
-            if worker is self.player:
-                worker.tick_needs()
-                continue
-            worker.take_turn()
+        if not self.popup_open:
+            self.turns += 1
+            for worker in self.world_objs[ObjType.mob]:
+                if worker is self.player:
+                    worker.tick_needs()
+                    continue
+                worker.take_turn()
 
     def render_all(self):
         for obj_type in self.world_objs:
@@ -500,7 +502,7 @@ class GameInstance():
     def render_popup(self):
         self.popup.draw_popup(self.root_console)
 
-    def init_popup(self, title, options, popup_func):
+    def init_popup(self, title, options=[], popup_func=None):
         self.popup_open = True
         self.popup_options = options
         self.popup_func = popup_func
@@ -625,7 +627,7 @@ class GameInstance():
     # Sets up key_bindings
     def handle_keys(self, event):
         key = event.sym
-        print(event)
+        print(event, event.sym)
 
         # Handle pop up options
         if self.popup_open:
@@ -633,15 +635,21 @@ class GameInstance():
                 self.popup_open = False
                 return False
 
-            opt_index = key - ord('a')
-            choice = self.popup_options[opt_index]
-            self.popup_func(choice)
-            self.popup_open = False
+            try:
+                opt_index = key - ord('a')
+                choice = self.popup_options[opt_index]
+                self.popup_func(choice)
+                self.popup_open = False
+            except IndexError:
+                pass
 
         # Handle Std game events
         else:
             if key_map.get(key) == "exit":
                 raise SystemExit()
+
+            if key_map.get(key) == "space":
+                self.init_popup("Paused")
 
             if key_map.get(key) in ("up", "num8"):
                 self.player_move_or_use(0, -1)

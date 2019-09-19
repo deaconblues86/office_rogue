@@ -21,21 +21,28 @@ with tcod.console_init_root(
 
     map_gen.generate_map()
     map_gen.generate_path_map()
+
+    fps = 20
+    iters = 0
     while True:
+        iters += 1
         game.render_all()
         game.render_bars()
         game.render_messages()
         tcod.console_flush()  # Show the console.
 
-        if not game.player.occupied:
-            player_busy = None
-        else:
-            player_busy = 1
+        # if not game.player.occupied:
+        #     player_busy = None
+        # else:
+        #     player_busy = 1
 
         # TODO: While loop currently runs twice for each key press (up and down)
         # May not be a problem, but need to watch game ticks
-        for event in Event.wait(player_busy):
+        for event in Event.get():
             dispatcher.dispatch(event)
 
-        game.run_coworkers()
+        if not iters % fps:
+            game.run_coworkers()
+            iters = 0
+
         root_console.clear()
