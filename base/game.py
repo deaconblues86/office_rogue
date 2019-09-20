@@ -53,7 +53,11 @@ class Dispatcher(EventDispatch):
         print(f"X: {event.tile.x}, Y: {event.tile.y}")
         try:
             clicked_tile = self.app.get_tile(event.tile.x, event.tile.y)
-            self.app.log_message(f"Items in tile: {', '.join([x.name for x in clicked_tile.contents])}")
+            msg = []
+            for x in clicked_tile.contents:
+                msg.append(x.dump())
+            self.app.init_popup("Tile Contents", msg="\n".join(msg))
+
         except IndexError:
             pass
 
@@ -79,11 +83,16 @@ class BaseObject():
         self.state = ""
 
     def adjacent(self):
-        # Asks GameInstance "What's Next to Me?"
+        """ Asks GameInstance 'What's Next to Me?'' """
         return self.game.get_adjacent(self)
 
     def broadcast(self, message, color="white"):
+        """ Publishes call backs from objects to game """
         self.game.log_message(message, color)
+
+    def dump(self):
+        """ Dumps pertinent object attributes for user to view """
+        return f"{self.name}: \n - durability: {self.durability}\n - state: {self.state}"
 
 
 class Item(BaseObject):
@@ -106,6 +115,10 @@ class Item(BaseObject):
 
     def use_func(self, target):
         self.broadcast(f"{self.name.capitalize} has no use!", "red")
+
+    def dump(self):
+        """ Dumps pertinent object attributes for user to view """
+        return super().dump() + f"\n - owner: {getattr(self.owner, 'name', '')}\n - satisfies: {', '.join(self.satisfies)}"
 
 
 class Vendor(BaseObject):
@@ -134,6 +147,7 @@ class Vendor(BaseObject):
                 self.inventory.append(obj)
 
     def use(self, user):
+        """ calls dispense function based on player choice or Coworker's Need """
         # Render Menu if player
         if user is self.game.player:
             self.game.init_popup(self.name.capitalize(), self.inventory, self.dispense)
@@ -145,10 +159,12 @@ class Vendor(BaseObject):
                 break
 
     def dispense(self, item, user=None):
+        """
+        Places requested Item in users inventory if not full
+        - Coworkers should use items in inventory first so full inventory shouldn't matter
+        """
         if not user:
             user = self.game.player
-        # TODO: Ensure AI will always use items in inventory first
-        # -- don't need them spinning their wheels with full inventories
         if user.inventory_full():
             user.broadcast(f"{user.name.capitalize()}'s inventory is full", "dark_red")
             return None
@@ -156,6 +172,14 @@ class Vendor(BaseObject):
         item.owner = user
         user.inventory.append(item)
         user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
+
+    def dump(self):
+        """ Dumps pertinent object attributes for user to view """
+        inv = [x.name for x in self.inventory]
+        grouped_inv = set([f"{x}: {inv.count(x)}" for x in inv])
+        item_dump = f"\n - owner: {getattr(self.owner, 'name', '')}\n - satisfies: {', '.join(self.satisfies)}"\
+            f"\n - stock: {', '.join(grouped_inv)}"
+        return super().dump() + item_dump
 
 
 class Mob(BaseObject):
@@ -211,6 +235,10 @@ class Mob(BaseObject):
         self.work_drain = -1
 
     def determine_closest(self, targets):
+        """
+        Determines closest target from list that could satisfy needs and isn't occupied.
+        - Pathing in GameInstance can reject occupied targets as well if the situation changes
+        """
         min_distance = None
         closest = None
         targets = filter(lambda x: not x.owner or x.owner is self, targets)
@@ -218,6 +246,10 @@ class Mob(BaseObject):
             # If no empty tiles, occupado
             empty_tiles = list(filter(lambda x: not x.blocked, self.game.get_adjacent(target)))
             if not empty_tiles:
+                continue
+
+            # If target has been held but is bad, skip it
+            if target is self.target:
                 continue
 
             dx = target.x - self.x
@@ -230,14 +262,24 @@ class Mob(BaseObject):
         return closest
 
     def calculate_target_path(self):
+        """
+        Asks GameInstance for path to target. If target now occupied, nothing will be returned.
+        If its a bum target, keep for now, but know to exclude on next pass
+        """
         self.path = self.game.find_path(self, self.target)
         if not self.path:
             self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
-            self.target = None
-            self.state = ""
+            self.state = "bum_target"
 
     def check_needs(self):
-        if not self.target:
+        """
+        Called every turn by take_turn. If not currently satsifying a need with a valid target in mind,
+        determine lowest need and find something to fix it.
+        - Inventory will be evaluated first to see if they have something for it
+        - The closest unoccupied thing that satisfies will be picked and a path returned
+        - If a bad target was previously acquired (bum_target) that'll be dropped from evaluation
+        """
+        if not self.target or self.state == "bum_target":
             lowest_status = 1
             for need in self.needs:
                 if need == "social":
@@ -262,6 +304,12 @@ class Mob(BaseObject):
                 self.calculate_target_path()
 
     def tick_needs(self):
+        """
+        Controls Mob state throught time
+        - Ticks Mob needs every four turns
+        - Frees up Mob as it's occupying action is performed
+        - Processes Special events as certain stats tank
+        """
         self.make_occupied(-1)
         if not self.game.turns % 4:
             self.mood_drain = 0
@@ -272,6 +320,11 @@ class Mob(BaseObject):
                 setattr(self, need, max(getattr(self, f"{need}_drain") + getattr(self, need), 0))
                 if getattr(self, need) == 0:
                     self.mood_drain -= 1
+            else:
+                # If mood's not currently draining, increase mood equal to stats 75% filled
+                if not self.mood_drain:
+                    positives = [x for x in self.needs if getattr(self, need) > 75]
+                    self.mood = min(len(positives) + self.mood, 100)
 
             # Draining mood based on unfufilled needs
             self.mood += self.mood_drain
@@ -320,12 +373,13 @@ class Mob(BaseObject):
             self.state = ""
             return None
 
+        # Will be standard Move
         next_tile = self.game.get_tile(*self.path[0])
         if not next_tile.blocked:
             self.move(next_tile)
-            self.path.pop(0)
+
+        # Will wait or try to swap places with blocking coworker
         else:
-            # Try to swap places with blocking coworker
             blockers = [x for x in next_tile.contents if x.blocks]
             if len(blockers) == 1 and isinstance(blockers[0], Mob):
                 coworker = blockers[0]
@@ -342,6 +396,14 @@ class Mob(BaseObject):
                 self.broadcast(f"{self.name} is waiting...")
 
     def move(self, dest_tile, swapping=False):
+        """
+        Handles Player and Coworker Move actions.  If player 'moves' into tile of appliance,
+        appliance will be used instead.  Likewise, Coworkers will be directed to do the same
+        - dest_tile: Tile to be moved to/use
+        - swapping: When True, overrides typical blocked check to allow to coworkers to exchange
+          positions if they both want to be in each others' spots
+        """
+        # Standard Move action
         if not dest_tile.blocked or swapping:
             self.game.remove_tile_content(self)
             self.game.update_pathmap(self.x, self.y)
@@ -349,6 +411,15 @@ class Mob(BaseObject):
             self.y = dest_tile.y
             self.game.add_tile_content(self)
             self.game.update_pathmap(self.x, self.y)
+
+            # Wrapped pop in a try as player won't have a path
+            try:
+                self.path.pop(0)
+            except IndexError:
+                pass
+
+        # Reached end of path or was player directed.
+        # Will now use target object
         else:
             # Assumes one usable object per tile
             appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
@@ -408,9 +479,12 @@ class PopUpMenu():
         )
 
     @classmethod
-    def load_options(cls, title, options):
+    def load_options(cls, title, msg, options):
         cls.title = title
         cls.text = ""
+        if msg:
+            cls.text += f"{msg}\n\n"
+
         letter_index = ord('a')
         for option_text in options:
             cls.text += f"{chr(letter_index)}: {option_text}\n"
@@ -457,7 +531,8 @@ class GameInstance():
             self.turns += 1
             for worker in self.world_objs[ObjType.mob]:
                 if worker is self.player:
-                    worker.tick_needs()
+                    if not self.player.fired:
+                        worker.tick_needs()
                     continue
                 worker.take_turn()
 
@@ -521,11 +596,11 @@ class GameInstance():
     def render_popup(self):
         self.popup.draw_popup(self.root_console)
 
-    def init_popup(self, title, options=[], popup_func=None):
+    def init_popup(self, title, msg=None, options=[], popup_func=None):
         self.popup_open = True
         self.popup_options = options
         self.popup_func = popup_func
-        self.popup.load_options(title, [x.name for x in self.popup_options])
+        self.popup.load_options(title, msg, [x.name for x in self.popup_options])
 
     def find_need(self, need):
         satisfies = []
@@ -537,8 +612,14 @@ class GameInstance():
         return satisfies
 
     def find_path(self, seeker, target):
-        # Pathing to first empty adjacent tile of target
+        """
+        Pathing to first empty adjacent tile of target. If none exist, None will be turned and the
+        Coworker can try again next time around.
+        """
         empty_tiles = list(filter(lambda x: not x.blocked, self.get_adjacent(target)))
+        if not empty_tiles:
+            return None
+
         path = self.game_map.path_map.get_path(seeker.x, seeker.y, empty_tiles[0].x, empty_tiles[0].y)
         return path
 
