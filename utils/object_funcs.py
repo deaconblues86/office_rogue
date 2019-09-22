@@ -29,12 +29,20 @@ def mob_quits(mob):
     mob.fired = True
 
 
+def cellphone_func(target):
+    target.mood = min(target.mood + 25, target.max_mood)
+    target.broadcast(target.name.capitalize() + " plays on their cellphone", "white")
+    target.state = "success: " + target.state
+    target.make_occupied(6)
+    return randint(5, 10)  # Wearing out object
+
+
 def toilet_func(target):
     target.bladder = target.max_bladder
     target.bowels = target.max_bowels
     target.broadcast(target.name.capitalize() + " uses the toilet", "white")
     target.state = "success: " + target.state
-    target.make_occupied(2)
+    target.make_occupied(4)
     return randint(5, 10)  # Wearing out object
 
 
@@ -42,7 +50,7 @@ def urinal_func(target):
     target.bladder = target.max_bladder
     target.broadcast(target.name.capitalize() + " uses the urinal", "white")
     target.state = "success: " + target.state
-    target.make_occupied(1)
+    target.make_occupied(2)
     return randint(5, 10)  # Wearing out object
 
 
@@ -53,7 +61,7 @@ def terminal_func(target):
     target.energy = max(int(target.energy - (work_gain * 0.25)), 0)
     target.broadcast(target.name.capitalize() + " uses their terminal", "white")
     target.state = "success: " + target.state
-    target.make_occupied(4)
+    target.make_occupied(8)
     return randint(5, 10)  # Wearing out object
 
 
@@ -63,7 +71,7 @@ def desk_func(target):
     target.work = min(target.work + work_gain, target.max_work)
     target.energy = max(int(target.energy - (work_gain * 0.5)), 0)
     target.broadcast(target.name.capitalize() + " uses their desk", "white")
-    target.make_occupied(4)
+    target.make_occupied(8)
     return randint(5, 10)  # Wearing out object
 
 
@@ -83,43 +91,26 @@ def repair_func(worker, target):
 
 def coffee_func(target):
     target.energy = target.max_energy
-    target.thirst = min(
-        int(target.thirst + (target.max_thirst * 0.25)),
-        target.max_thirst,
-    )
-    target.bladder = max(
-        int(target.bladder - (target.max_bladder * 0.1)), 0
-    )
-    target.bowels = max(
-        int(target.bowels - (target.max_bowels * 0.1)), 0
-    )
+    target.thirst = min(target.thirst + 25, target.max_thirst)
+    target.bladder = max(target.bladder - 10, 0)
+    target.bowels = max(target.bowels - 10, 0)
     target.broadcast(target.name.capitalize() + " gets some coffee", "white")
     target.state = "success: " + target.state
-    target.make_occupied(1)
+    target.make_occupied(2)
     return randint(5, 10)  # Wearing out object
 
 
 def water_func(target):
-    target.thirst = min(
-        target.thirst + (target.max_thirst * 0.75),
-        target.max_thirst,
-    )
-    target.bladder = max(
-        target.bladder - (target.max_bladder * 0.1), 0
-    )
+    target.thirst = min(target.thirst + 50, target.max_thirst)
+    target.bladder = max(target.bladder - 10, 0)
     target.broadcast(target.name.capitalize() + " drinks some water", "white")
     target.state = "success: " + target.state
     return 50
 
 
 def snack_func(target):
-    target.hunger = min(
-        target.hunger + (target.max_hunger * 0.5),
-        target.max_hunger,
-    )
-    target.bowels = max(
-        target.bowels - (target.max_bowels * 0.1), 0
-    )
+    target.hunger = min(target.hunger + 50, target.max_hunger)
+    target.bowels = max(target.bowels - 10, 0)
     target.broadcast(target.name.capitalize() + " eats a snack", "white")
     target.state = "success: " + target.state
     return 25

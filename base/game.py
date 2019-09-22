@@ -39,6 +39,29 @@ key_map = {
 }
 
 
+def attrFormatter(attrs, obj, override={}, base=False):
+    details = ""
+    if base:
+        details += f"{getattr(obj, 'name')}\n"
+    for attr in attrs:
+        val = getattr(obj, attr, '')
+        if isinstance(val, list):
+            val = ','.join(val)
+        elif isinstance(val, BaseObject):
+            val = val.name
+        details += f" - {attr}: {val}\n"
+
+    for attr in override:
+        val = override.get(attr)
+        if isinstance(val, list):
+            val = ','.join(val)
+        elif isinstance(val, BaseObject):
+            val = val.name
+        details += f" - {attr}: {val}\n"
+
+    return details
+
+
 class Dispatcher(EventDispatch):
     def __init__(self, app):
         self.app = app
@@ -92,7 +115,7 @@ class BaseObject():
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
-        return f"{self.name}: \n - durability: {self.durability}\n - state: {self.state}"
+        return attrFormatter(["durability", "state"], self, base=True)
 
 
 class Item(BaseObject):
@@ -118,7 +141,8 @@ class Item(BaseObject):
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
-        return super().dump() + f"\n - owner: {getattr(self.owner, 'name', '')}\n - satisfies: {', '.join(self.satisfies)}"
+        details = super().dump()
+        return details + attrFormatter(["owner", "satisfies"], self)
 
 
 class Vendor(BaseObject):
@@ -147,16 +171,22 @@ class Vendor(BaseObject):
                 self.inventory.append(obj)
 
     def use(self, user):
-        """ calls dispense function based on player choice or Coworker's Need """
+        """
+        Calls dispense function based on player choice or Coworker's Need
+        - Will render Menu popup if Player
+        - AI will get first item that satisfies need. If none exist, will be marked as a bum_target
+        """
         # Render Menu if player
         if user is self.game.player:
-            self.game.init_popup(self.name.capitalize(), self.inventory, self.dispense)
+            self.game.init_popup(self.name.capitalize(), options=self.inventory, popup_func=self.dispense)
         else:
             # AI will choose first item to satisfy their needs
             desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
             for item in desired:
                 self.dispense(item, user)
                 break
+            else:
+                user.state = "bum_target"
 
     def dispense(self, item, user=None):
         """
@@ -177,9 +207,8 @@ class Vendor(BaseObject):
         """ Dumps pertinent object attributes for user to view """
         inv = [x.name for x in self.inventory]
         grouped_inv = set([f"{x}: {inv.count(x)}" for x in inv])
-        item_dump = f"\n - owner: {getattr(self.owner, 'name', '')}\n - satisfies: {', '.join(self.satisfies)}"\
-            f"\n - stock: {', '.join(grouped_inv)}"
-        return super().dump() + item_dump
+        details = super().dump()
+        return details + attrFormatter(["owner", "satisfies"], self, override={'stock': grouped_inv})
 
 
 class Mob(BaseObject):
@@ -234,10 +263,16 @@ class Mob(BaseObject):
         self.mood_drain = 0
         self.work_drain = -1
 
+        phone_params = game_objects["Cellphone"]
+        phone_params.update({"game": self, "x": 0, "y": 0})
+        phone = Item(**phone_params)
+        self.inventory.append(phone)
+
     def determine_closest(self, targets):
         """
         Determines closest target from list that could satisfy needs and isn't occupied.
         - Pathing in GameInstance can reject occupied targets as well if the situation changes
+        - determine_closest only called when no target is held or when it was bad
         """
         min_distance = None
         closest = None
@@ -345,6 +380,7 @@ class Mob(BaseObject):
                 self.bowels = self.max_bowels
 
     def take_turn(self):
+        """ Main AI Method called by GameInstance for each turn """
         if self.fired:
             return None
 
@@ -365,7 +401,7 @@ class Mob(BaseObject):
         if not self.target:
             return None
 
-        # Dest. has been reached -> use target
+        # Dest. has been reached -> use target, clear target, clear state
         if not self.path:
             next_tile = self.game.get_tile(self.target.x, self.target.y)
             self.move(next_tile)
@@ -443,6 +479,13 @@ class Mob(BaseObject):
 
     def inventory_full(self):
         return len(self.inventory) == self.max_inventory
+
+    def dump(self):
+        """ Dumps pertinent object attributes for user to view """
+        details = super().dump()
+        attrs = list(self.needs)
+        attrs += ["target", "satisfying"]
+        return details + attrFormatter(attrs, self)
 
 
 class PopUpMenu():
@@ -779,18 +822,18 @@ class GameInstance():
                 pass
 
             elif key == ord("i"):
-                self.init_popup("Inventory", self.player.inventory, self.player.use_item)
+                self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.use_item)
 
             elif key == ord("g"):
                 self.init_popup(
                     "Pick Up Item",
-                    self.get_tile(self.player.x, self.player.y).contents,
-                    self.player.pickup_item
+                    options=self.get_tile(self.player.x, self.player.y).contents,
+                    popup_func=self.player.pickup_item
                 )
 
             elif key == ord("d"):
                 self.init_popup(
                     "Drop Item",
-                    self.player.inventory,
-                    self.player.drop_item
+                    options=self.player.inventory,
+                    popup_func=self.player.drop_item
                 )

@@ -145,6 +145,14 @@
         "use_func": "snack_func",
         "obj_type": "item"
     },
+    "Cellphone": {
+        "name": "Cellphone",
+        "char": "[",
+        "color": "light_orange",
+        "satisfies": ["mood"],
+        "use_func": "cellphone_func",
+        "obj_type": "item"
+    },
     "Urine": {
         "name": "Urine",
         "char": "%",
