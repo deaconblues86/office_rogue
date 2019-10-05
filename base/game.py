@@ -109,6 +109,10 @@ class BaseObject():
         """ Asks GameInstance 'What's Next to Me?'' """
         return self.game.get_adjacent(self)
 
+    @property
+    def broken(self):
+        return self.durability <= 0
+
     def broadcast(self, message, color="white"):
         """ Publishes call backs from objects to game """
         self.game.log_message(message, color)
@@ -132,6 +136,9 @@ class Item(BaseObject):
     def use(self, user):
         if self.owner and self.owner is not user:
             self.broadcast(f"{self.name} doesn't belong to {user.name}")
+        elif self.broken:
+            self.broadcast(f"{self.name} is broken")
+            user.state = "bum_target"
         else:
             wear = self.use_func(user)
             self.durability -= wear
@@ -198,6 +205,7 @@ class Vendor(BaseObject):
         if user.inventory_full():
             user.broadcast(f"{user.name.capitalize()}'s inventory is full", "dark_red")
             return None
+
         self.inventory = list(filter(lambda x: x is not item, self.inventory))
         item.owner = user
         user.inventory.append(item)
@@ -235,12 +243,13 @@ class Mob(BaseObject):
         # AI Controls
         # - target: That which the AI moves towards and plans to use
         # - satisfying: The goal to be fulfilled upon usage
+        # - waiting: Allows coworker to wait, for a time, while their path clears
         self.target = None
         self.satisfying = None
         self.waiting = 0
 
         self.fired = False
-        self.occupied = 0
+        self._occupied = 0
 
         self.max_social = 100
         self.max_hunger = 100
@@ -267,6 +276,18 @@ class Mob(BaseObject):
         phone_params.update({"game": self, "x": 0, "y": 0})
         phone = Item(**phone_params)
         self.inventory.append(phone)
+
+    @property
+    def occupied(self):
+        return self._occupied
+
+    @occupied.setter
+    def occupied(self, value):
+        self._occupied = max(value, 0)
+        if self._occupied:
+            self.char = '?'
+        else:
+            self.char = '@'
 
     def determine_closest(self, targets):
         """
@@ -313,6 +334,7 @@ class Mob(BaseObject):
         - Inventory will be evaluated first to see if they have something for it
         - The closest unoccupied thing that satisfies will be picked and a path returned
         - If a bad target was previously acquired (bum_target) that'll be dropped from evaluation
+          - bad targets: Unable to path, currently broken, needed item out of stock
         """
         if not self.target or self.state == "bum_target":
             lowest_status = 1
@@ -345,7 +367,7 @@ class Mob(BaseObject):
         - Frees up Mob as it's occupying action is performed
         - Processes Special events as certain stats tank
         """
-        self.make_occupied(-1)
+        self.occupied -= 1
         if not self.game.turns % 4:
             self.mood_drain = 0
             for need in self.needs:
@@ -389,13 +411,6 @@ class Mob(BaseObject):
         if not self.occupied:
             self.check_needs()
             self.move_to_target()
-
-    def make_occupied(self, duration):
-        self.occupied = max(self.occupied + duration, 0)
-        if self.occupied:
-            self.char = '?'
-        else:
-            self.char = '@'
 
     def move_to_target(self):
         if not self.target:

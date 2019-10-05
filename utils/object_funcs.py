@@ -29,91 +29,91 @@ def mob_quits(mob):
     mob.fired = True
 
 
-def cellphone_func(target):
-    target.mood = min(target.mood + 25, target.max_mood)
-    target.broadcast(target.name.capitalize() + " plays on their cellphone", "white")
-    target.state = "success: " + target.state
-    target.make_occupied(6)
+def cellphone_func(user):
+    user.mood = min(user.mood + 25, user.max_mood)
+    user.broadcast(user.name.capitalize() + " plays on their cellphone", "white")
+    user.state = "success: " + user.state
+    user.occupied += 6
     return randint(5, 10)  # Wearing out object
 
 
-def toilet_func(target):
-    target.bladder = target.max_bladder
-    target.bowels = target.max_bowels
-    target.broadcast(target.name.capitalize() + " uses the toilet", "white")
-    target.state = "success: " + target.state
-    target.make_occupied(4)
+def toilet_func(user):
+    user.bladder = user.max_bladder
+    user.bowels = user.max_bowels
+    user.broadcast(user.name.capitalize() + " uses the toilet", "white")
+    user.state = "success: " + user.state
+    user.occupied += 4
     return randint(5, 10)  # Wearing out object
 
 
-def urinal_func(target):
-    target.bladder = target.max_bladder
-    target.broadcast(target.name.capitalize() + " uses the urinal", "white")
-    target.state = "success: " + target.state
-    target.make_occupied(2)
+def urinal_func(user):
+    user.bladder = user.max_bladder
+    user.broadcast(user.name.capitalize() + " uses the urinal", "white")
+    user.state = "success: " + user.state
+    user.occupied += 2
     return randint(5, 10)  # Wearing out object
 
 
-def terminal_func(target):
-    energy_ratio = float(target.energy) / float(target.max_energy)
-    work_gain = int(target.max_work * (energy_ratio * 0.3))
-    target.work = min(target.work + work_gain, target.max_work)
-    target.energy = max(int(target.energy - (work_gain * 0.25)), 0)
-    target.broadcast(target.name.capitalize() + " uses their terminal", "white")
-    target.state = "success: " + target.state
-    target.make_occupied(8)
+def coffee_func(user):
+    user.energy = user.max_energy
+    user.thirst = min(user.thirst + 25, user.max_thirst)
+    user.bladder = max(user.bladder - 10, 0)
+    user.bowels = max(user.bowels - 10, 0)
+    user.broadcast(user.name.capitalize() + " gets some coffee", "white")
+    user.state = "success: " + user.state
+    user.occupied += 2
     return randint(5, 10)  # Wearing out object
 
 
-def desk_func(target):
-    energy_ratio = target.energy / target.max_energy
-    work_gain = int(target.max_work * (energy_ratio * 0.15))
-    target.work = min(target.work + work_gain, target.max_work)
-    target.energy = max(int(target.energy - (work_gain * 0.5)), 0)
-    target.broadcast(target.name.capitalize() + " uses their desk", "white")
-    target.make_occupied(8)
-    return randint(5, 10)  # Wearing out object
-
-
-def repair_func(worker, target):
-    energy_ratio = target.energy / target.max_energy
-    work_gain = int(target.max_work * (energy_ratio * 0.3))
-    worker.work = min(worker.work + work_gain, worker.max_work)
-    worker.energy = max(int(worker.energy - (work_gain * 0.25)), 0)
-    target.broadcast(worker.name.capitalize() + " repairs the " + target.name.capitalize(), "white")
-    worker.state = "success: " + worker.state
-
-    # Currently setting up repair to add durability to target equal to work put it
-    target.durability += work_gain
-    target.state = ""
-    target.color = target.orig_color
-
-
-def coffee_func(target):
-    target.energy = target.max_energy
-    target.thirst = min(target.thirst + 25, target.max_thirst)
-    target.bladder = max(target.bladder - 10, 0)
-    target.bowels = max(target.bowels - 10, 0)
-    target.broadcast(target.name.capitalize() + " gets some coffee", "white")
-    target.state = "success: " + target.state
-    target.make_occupied(2)
-    return randint(5, 10)  # Wearing out object
-
-
-def water_func(target):
-    target.thirst = min(target.thirst + 50, target.max_thirst)
-    target.bladder = max(target.bladder - 10, 0)
-    target.broadcast(target.name.capitalize() + " drinks some water", "white")
-    target.state = "success: " + target.state
+def water_func(user):
+    user.thirst = min(user.thirst + 50, user.max_thirst)
+    user.bladder = max(user.bladder - 10, 0)
+    user.broadcast(user.name.capitalize() + " drinks some water", "white")
+    user.state = "success: " + user.state
     return 50
 
 
-def snack_func(target):
-    target.hunger = min(target.hunger + 50, target.max_hunger)
-    target.bowels = max(target.bowels - 10, 0)
-    target.broadcast(target.name.capitalize() + " eats a snack", "white")
-    target.state = "success: " + target.state
+def snack_func(user):
+    user.hunger = min(user.hunger + 50, user.max_hunger)
+    user.bowels = max(user.bowels - 10, 0)
+    user.broadcast(user.name.capitalize() + " eats a snack", "white")
+    user.state = "success: " + user.state
     return 25
+
+
+def terminal_func(user):
+    energy_ratio = float(user.energy) / float(user.max_energy)
+    work_gain = int(user.max_work * (energy_ratio * 0.3))
+    user.work = min(user.work + work_gain, user.max_work)
+    user.energy = max(int(user.energy - (work_gain * 0.25)), 0)
+    user.broadcast(user.name.capitalize() + " uses their terminal", "white")
+    user.state = "success: " + user.state
+    user.occupied += 8
+    return randint(5, 10)  # Wearing out object
+
+
+def desk_func(user):
+    energy_ratio = user.energy / user.max_energy
+    work_gain = int(user.max_work * (energy_ratio * 0.15))
+    user.work = min(user.work + work_gain, user.max_work)
+    user.energy = max(int(user.energy - (work_gain * 0.5)), 0)
+    user.broadcast(user.name.capitalize() + " uses their desk", "white")
+    user.occupied += 8
+    return randint(5, 10)  # Wearing out object
+
+
+def repair_func(user, target):
+    energy_ratio = user.energy / user.max_energy
+    work_gain = int(user.max_work * (energy_ratio * 0.3))
+    user.work = min(user.work + work_gain, user.max_work)
+    user.energy = max(int(user.energy - (work_gain * 0.25)), 0)
+    user.broadcast(user.name.capitalize() + " repairs the " + target.name.capitalize(), "white")
+    user.state = "success: " + user.state
+
+    # Currently setting up repair to add durability to target equal to work put it
+    target.durability = min(target.durability + work_gain, 100)
+    target.state = ""
+    target.color = target.orig_color
 
 
 def clean_func(target):
