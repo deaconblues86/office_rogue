@@ -40,6 +40,13 @@ key_map = {
 
 
 def attrFormatter(attrs, obj, override={}, base=False):
+    '''
+    Formats Object's attributes for rendering when viewing
+    - attrs: Attributes for display
+    - obj: The object itself
+    - override: dictionary of special preformatted items to include
+    - base: When True includes object name as header
+    '''
     details = ""
     if base:
         details += f"{getattr(obj, 'name')}\n"
@@ -86,6 +93,57 @@ class Dispatcher(EventDispatch):
 
     def ev_mousemotion(self, event):
         pass
+
+
+class Thought():
+    def __init__(self, name, description, duration, target_attr, modifier):
+        self.name = name
+        self.description = description
+        self.duration = duration
+        self.target_attr = target_attr
+        self.modifier = modifier
+
+    def apply_modifier(self, target):
+        attr = getattr(target, self.target_attr)
+        attr += self.modifier
+        setattr(target, self.target_attr, attr)
+
+
+class Memories():
+    def __init__(self, mob):
+        self.mob = mob
+        self.broken_items = []
+        self.work_tasks = []
+        self.thoughts = []
+        self.relationships = []
+        self.iters = 0
+
+    def tick_memories(self):
+        '''
+        Every 20 turns, remove oldest item found to be broken,
+        tick thought lifetimes, apply modifiers, and remove timed out thoughts
+        '''
+        self.iters += 1
+        if not self.iters % 20:
+            if self.broken_items:
+                self.broken_items.pop(0)
+            for thought in self.thoughts:
+                thought.apply_modifier(self.mob)
+                thought.duration -= 1
+            self.thoughts = [t for t in self.thoughts if t.duration <= 0]
+
+    def add_broken(self, obj):
+        '''
+        Try to pop already found broken obj from list if present
+        Add broken object to end of list
+        '''
+        try:
+            i = self.broken_items.index(obj)
+            self.broken_items.pop(i)
+        except ValueError:
+            print(f"newly found broken object: {obj.name}")
+        finally:
+            self.broken_items.append(obj)
 
 
 class BaseObject():
@@ -138,7 +196,7 @@ class Item(BaseObject):
             self.broadcast(f"{self.name} doesn't belong to {user.name}")
         elif self.broken:
             self.broadcast(f"{self.name} is broken")
-            user.state = "bum_target"
+            user.broken_target(self)
         else:
             wear = self.use_func(user)
             self.durability -= wear
@@ -181,7 +239,7 @@ class Vendor(BaseObject):
         """
         Calls dispense function based on player choice or Coworker's Need
         - Will render Menu popup if Player
-        - AI will get first item that satisfies need. If none exist, will be marked as a bum_target
+        - AI will get first item that satisfies need. If none exist, will be marked as broken
         """
         # Render Menu if player
         if user is self.game.player:
@@ -193,7 +251,7 @@ class Vendor(BaseObject):
                 self.dispense(item, user)
                 break
             else:
-                user.state = "bum_target"
+                user.broken_target(self)
 
     def dispense(self, item, user=None):
         """
@@ -244,9 +302,11 @@ class Mob(BaseObject):
         # - target: That which the AI moves towards and plans to use
         # - satisfying: The goal to be fulfilled upon usage
         # - waiting: Allows coworker to wait, for a time, while their path clears
+        # - memories: Stores experiances of the coworker
         self.target = None
         self.satisfying = None
         self.waiting = 0
+        self.memories = Memories(self)
 
         self.fired = False
         self._occupied = 0
@@ -289,6 +349,11 @@ class Mob(BaseObject):
         else:
             self.char = '@'
 
+    def broken_target(self, obj):
+        ''' Marks target as broken in memory and clears target '''
+        self.memories.add_broken(obj)
+        self.target = None
+
     def determine_closest(self, targets):
         """
         Determines closest target from list that could satisfy needs and isn't occupied.
@@ -306,6 +371,10 @@ class Mob(BaseObject):
 
             # If target has been held but is bad, skip it
             if target is self.target:
+                continue
+
+            # If target is known to be broken, skip it
+            if target in self.memories.broken_items:
                 continue
 
             dx = target.x - self.x
@@ -334,7 +403,7 @@ class Mob(BaseObject):
         - Inventory will be evaluated first to see if they have something for it
         - The closest unoccupied thing that satisfies will be picked and a path returned
         - If a bad target was previously acquired (bum_target) that'll be dropped from evaluation
-          - bad targets: Unable to path, currently broken, needed item out of stock
+          - bad targets: Unable to path
         """
         if not self.target or self.state == "bum_target":
             lowest_status = 1
@@ -368,6 +437,7 @@ class Mob(BaseObject):
         - Processes Special events as certain stats tank
         """
         self.occupied -= 1
+        self.memories.tick_memories()
         if not self.game.turns % 4:
             self.mood_drain = 0
             for need in self.needs:
@@ -479,7 +549,7 @@ class Mob(BaseObject):
 
     def use_item(self, item):
         item.use(self)
-        if not item.durability:
+        if item.durability <= 0:
             self.inventory = list(filter(lambda x: x is not item, self.inventory))
             del item
 
@@ -500,7 +570,8 @@ class Mob(BaseObject):
         details = super().dump()
         attrs = list(self.needs)
         attrs += ["target", "satisfying"]
-        return details + attrFormatter(attrs, self)
+        broken = [x.name for x in self.memories.broken_items]
+        return details + attrFormatter(attrs, self, override={"broken": broken})
 
 
 class PopUpMenu():
