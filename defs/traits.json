@@ -1,10 +1,10 @@
 {
     "sluggish": {
-        "stat": "energy_drain",
-        "mod": 1.25
+        "target_stat": "energy_drain",
+        "modifier": 1.25
     },
     "chatty": {
-        "stat": "social_drain",
-        "mod": 1.25
+        "target_stat": "social_drain",
+        "modifier": 1.25
     }
 }

@@ -1,0 +1,10 @@
+{
+    "Grossed Out": {
+        "name": "Grossed Out",
+        "description": "Mood will deterioriate quicker having come across something unappealing.",
+        "color": "light_orange",
+        "target_stat": "mood",
+        "modifier": -1,
+        "duration": 10
+    }
+}

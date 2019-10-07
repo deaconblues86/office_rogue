@@ -45,30 +45,8 @@ STATS = [
 MSG_HEIGHT = 6
 msg_width = screen_width - BAR_WIDTH - 2
 
-colors = {
-    "white": (255, 255, 255),
-    "black": (0, 0, 0),
-    "light_grey": tcod.light_grey,
-    "dark_grey": tcod.dark_grey,
-    "light_sepia": tcod.light_sepia,
-    "dark_sepia": tcod.dark_sepia,
-    "pink": tcod.pink,
-    "light_red": tcod.light_red,
-    "dark_red": tcod.dark_red,
-    "orange": tcod.orange,
-    "light_orange": tcod.dark_orange,
-    "dark_orange": tcod.dark_orange,
-    "yellow": tcod.yellow,
-    "light_yellow": tcod.yellow,
-    "dark_yellow": tcod.dark_yellow,
-    "light_green": tcod.light_green,
-    "dark_green": tcod.dark_green,
-    "blue": tcod.blue,
-    "light_blue": tcod.light_blue,
-    "dark_blue": tcod.dark_blue,
-    "light_violet": tcod.light_violet,
-    "dark_violet": tcod.dark_violet,
-}
+with open("defs/colors.json") as colors_file:
+    colors = json.loads(colors_file.read())
 
 room_types = {}
 with open("defs/rooms.txt") as room_file:
@@ -86,6 +64,12 @@ with open("defs/rooms.txt") as room_file:
 
 with open("defs/objects.json") as obj_file:
     game_objects = json.loads(obj_file.read())
+
+with open("defs/requests.json") as req_file:
+    work_requests = json.loads(req_file.read())
+
+with open("defs/emissions.json") as emit_file:
+    game_auras = json.loads(emit_file.read())
 
 with open('defs/female_names.txt') as names:
     female_names = [n.strip() for n in names.readlines()]

@@ -4,9 +4,12 @@
         "char": "S",
         "color": "yellow",
         "blocks": true,
-        "satisfies": ["none"],
-        "use_func": "none",
-        "obj_type": "appliance"
+        "satisfies": [],
+        "use_func": null,
+        "obj_type": "appliance",
+        "on_item_out": {
+            "request": "Restock"
+        }
     },
     "=": {
         "name": "Desk",
@@ -21,11 +24,17 @@
         "color": "yellow",
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
+        "obj_type": "vendor",
         "stock": [
             {"name": "Water Bottle", "max_stock": 4},
             {"name": "Snack", "max_stock": 4}
         ],
-        "obj_type": "vendor"
+        "on_broken": {
+            "request": "Repair"
+        },
+        "on_no_stock": {
+            "request": "Restock"
+        }
     },
     "C": {
         "name": "Coffee Maker",
@@ -34,25 +43,42 @@
         "satisfies": ["energy", "thirst"],
         "blocks": true,
         "use_func": "coffee_func",
-        "obj_type": "appliance"
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Repair"
+        }
     },
     "F": {
         "name": "Refrigerator",
         "char": "F",
         "color": "blue",
         "blocks": true,
-        "satisfies": ["none"],
-        "use_func": "none",
-        "obj_type": "appliance"
+        "satisfies": [],
+        "use_func": null,
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Repair"
+        },
+        "on_dirty": {
+            "emits": "Grossed Out",
+            "request": "Clean"
+        }
     },
     "M": {
         "name": "Microwave",
         "char": "M",
         "color": "orange",
         "blocks": true,
-        "satisfies": ["none"],
-        "use_func": "none",
-        "obj_type": "appliance"
+        "satisfies": [],
+        "use_func": null,
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Repair"
+        },
+        "on_dirty": {
+            "emits": "Grossed Out",
+            "request": "Clean"
+        }
     },
     "t": {
         "name": "Terminal",
@@ -61,7 +87,10 @@
         "satisfies": ["work"],
         "blocks": true,
         "use_func": "terminal_func",
-        "obj_type": "appliance"
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Service"
+        }
     },
     "U": {
         "name": "Urinal",
@@ -70,16 +99,30 @@
         "blocks": true,
         "satisfies": ["bladder"],
         "use_func": "urinal_func",
-        "obj_type": "appliance"
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Repair"
+        },
+        "on_dirty": {
+            "emits": "Grossed Out",
+            "request": "Clean"
+        }
     },
     "H": {
         "name": "Sink", 
         "char": "H",
         "color": "white",
         "blocks": true,
-        "satisfies": ["none"],
-        "use_func": "none",
-        "obj_type": "appliance"
+        "satisfies": [],
+        "use_func": null,
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Repair"
+        },
+        "on_dirty": {
+            "emits": "Grossed Out",
+            "request": "Clean"
+        }
     },
     "T": {
         "name": "Toilet",
@@ -88,7 +131,14 @@
         "blocks": true,
         "satisfies": ["bladder", "bowels"],
         "use_func": "toilet_func",
-        "obj_type": "appliance"
+        "obj_type": "appliance",
+        "on_broken": {
+            "request": "Repair"
+        },
+        "on_dirty": {
+            "emits": "Grossed Out",
+            "request": "Clean"
+        }
     },
     "x": {
         "name": "Chair",
@@ -135,7 +185,10 @@
         "color": "light_blue",
         "satisfies": ["thirst"],
         "use_func": "water_func",
-        "obj_type": "item"
+        "obj_type": "item",
+        "on_broken": {
+            "become": "Trash"
+        }
     },
     "Snack": {
         "name": "Snack",
@@ -143,7 +196,10 @@
         "color": "light_green",
         "satisfies": ["hunger"],
         "use_func": "snack_func",
-        "obj_type": "item"
+        "obj_type": "item",
+        "on_broken": {
+            "become": "Trash"
+        }
     },
     "Cellphone": {
         "name": "Cellphone",
@@ -158,15 +214,32 @@
         "char": "%",
         "color": "light_yellow",
         "satisfies": ["clean"],
-        "use_func": "clean_func",
-        "obj_type": "item"
+        "emits": ["Grossed Out"],
+        "obj_type": "item",
+        "on_create": {
+            "request": "Clean Up"
+        }
     },
     "Poo": {
         "name": "Poo",
         "char": "%",
         "color": "light_sepia",
         "satisfies": ["clean"],
-        "use_func": "clean_func",
-        "obj_type": "item"
+        "emits": ["Grossed Out"],
+        "obj_type": "item",
+        "on_create": {
+            "request": "Clean Up"
+        }
+    },
+    "Trash": {
+        "name": "Trash",
+        "char": "%",
+        "color": "light_red",
+        "satisfies": ["clean"],
+        "emits": "Grossed Out",
+        "obj_type": "item",
+        "on_create": {
+            "request": "Clean Up"
+        }
     }
 }

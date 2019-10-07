@@ -3,13 +3,16 @@ import tcod.event as Event
 
 from base.game import Dispatcher, GameInstance
 from base.map_gen import MapGenerator
-from constants import screen_width, screen_height
+from constants import screen_width, screen_height, colors
 
 # Setup the font.
 tcod.console_set_custom_font(
     "arial12x12.png",
     tcod.FONT_LAYOUT_TCOD | tcod.FONT_TYPE_GREYSCALE,
 )
+
+# Pull bg color
+bg_color = tuple(colors["black"])
 
 # Initialize the root console in a context.
 with tcod.console_init_root(
@@ -45,4 +48,4 @@ with tcod.console_init_root(
             game.run_coworkers()
             iters = 0
 
-        root_console.clear()
+        root_console.clear(bg=bg_color)

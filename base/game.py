@@ -15,7 +15,9 @@ from constants import (
     colors,
     female_names,
     male_names,
-    game_objects
+    game_objects,
+    game_auras,
+    work_requests,
 )
 from utils import object_funcs
 
@@ -95,18 +97,54 @@ class Dispatcher(EventDispatch):
         pass
 
 
+class WorkRequest():
+    def __init__(self, name, job, target, target_stat=None, target_func=None, modifier=None, new_value=None):
+        self.name = name
+        self.job = job
+        self.target = target
+        self.target_stat = target
+        self.target_func = target
+        self.modifier = target
+        self.new_value = target
+
+        self.assignee = None
+
+    def resolve_request(self):
+        if self.target_func:
+            req_method = getattr(self.target, self.target_func)
+            req_method()
+        elif self.target_stat and self.modifier:
+            if self.modifier < 0:
+                setattr(
+                    self.target,
+                    self.target_stat,
+                    max(getattr(self.target, self.target_stat) + self.modifier, 0)
+                )
+            else:
+                setattr(
+                    self.target,
+                    self.target_stat,
+                    min(
+                        getattr(self.target, self.target_stat) + self.modifier,
+                        getattr(self.target, f"max_{self.target_stat}")
+                    )
+                )
+        elif self.target_stat and self.new_value:
+            setattr(self.target, self.target_stat, self.new_value)
+
+
 class Thought():
-    def __init__(self, name, description, duration, target_attr, modifier):
+    def __init__(self, name, description, duration, target_stat, modifier):
         self.name = name
         self.description = description
         self.duration = duration
-        self.target_attr = target_attr
+        self.target_stat = target_stat
         self.modifier = modifier
 
     def apply_modifier(self, target):
-        attr = getattr(target, self.target_attr)
+        attr = getattr(target, self.target_stat)
         attr += self.modifier
-        setattr(target, self.target_attr, attr)
+        setattr(target, self.target_stat, attr)
 
 
 class Memories():
@@ -161,7 +199,11 @@ class BaseObject():
             self.blocks_sight = kwargs.get("blocks_sight")
 
         self.durability = durability
+        self.cleanliness = 100
         self.state = ""
+        self.emits = kwargs.get("emits")
+        self.on_create = kwargs.get("on_create")
+        self.on_destroy = kwargs.get("on_destroy")
 
     def adjacent(self):
         """ Asks GameInstance 'What's Next to Me?'' """
@@ -170,6 +212,9 @@ class BaseObject():
     @property
     def broken(self):
         return self.durability <= 0
+
+    def destroy(self):
+        self.game.delete_object(self)
 
     def broadcast(self, message, color="white"):
         """ Publishes call backs from objects to game """
@@ -184,12 +229,15 @@ class Item(BaseObject):
     def __init__(self, satisfies, use_func, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
-        self.use_func_lookup = use_func
+        self.use_func_repr = use_func
         self.owner = owner
 
+        self.on_broken = kwargs.get("on_broken")
+        self.on_dirty = kwargs.get("on_dirty")
+
         # Get actual function from string repr
-        if self.use_func:
-            self.use_func = getattr(object_funcs, self.use_func_lookup, self.use_func)
+        if self.use_func_repr:
+            self.use_func = getattr(object_funcs, self.use_func_repr, self._use_func)
 
     def use(self, user):
         if self.owner and self.owner is not user:
@@ -198,11 +246,20 @@ class Item(BaseObject):
             self.broadcast(f"{self.name} is broken")
             user.broken_target(self)
         else:
-            wear = self.use_func(user)
+            wear, dirt = self.use_func(user)
             self.durability -= wear
+            self.cleanliness -= dirt
+            self.eval_events()
 
-    def use_func(self, target):
+    def _use_func(self, target):
         self.broadcast(f"{self.name.capitalize} has no use!", "red")
+        return 0, 0
+
+    def eval_events(self):
+        if self.durability <= 0:
+            self.game.submit_event(self, self.on_broken)
+        if self.cleanliness <= 0:
+            self.game.submit_event(self, self.on_dirty)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
@@ -223,13 +280,14 @@ class Vendor(BaseObject):
         self.owner = owner
         self.stock = stock
         self.inventory = []
+        self.on_no_stock = kwargs.get("on_no_stock")
         self.restock_items()
 
     def restock_items(self):
         for item in self.stock:
             curr_stock = len(list(filter(lambda x: x.name == item["name"], self.inventory)))
             obj_params = game_objects[item["name"]]
-            obj_params.update({"game": self, "x": 0, "y": 0})
+            obj_params.update({"game": self.game, "x": 0, "y": 0})
             while curr_stock < item["max_stock"]:
                 curr_stock += 1
                 obj = Item(**obj_params)
@@ -257,6 +315,7 @@ class Vendor(BaseObject):
         """
         Places requested Item in users inventory if not full
         - Coworkers should use items in inventory first so full inventory shouldn't matter
+        - Log request for restock if vendor is empty
         """
         if not user:
             user = self.game.player
@@ -268,6 +327,9 @@ class Vendor(BaseObject):
         item.owner = user
         user.inventory.append(item)
         user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
+
+        if not self.inventory:
+            self.game.submit_event(self, self.on_no_stock)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
@@ -349,6 +411,17 @@ class Mob(BaseObject):
         else:
             self.char = '@'
 
+    def get_tasks(self):
+        return self.memories.work_tasks
+
+    def add_task(self, job):
+        job.assignee = self
+        self.memories.work_tasks.append(job)
+
+    def remove_task(self, job):
+        self.memories.work_tasks = [x for x in self.memories.work_tasks if x is not job]
+        self.game.complete_request(job)
+
     def broken_target(self, obj):
         ''' Marks target as broken in memory and clears target '''
         self.memories.add_broken(obj)
@@ -401,7 +474,8 @@ class Mob(BaseObject):
         Called every turn by take_turn. If not currently satsifying a need with a valid target in mind,
         determine lowest need and find something to fix it.
         - Inventory will be evaluated first to see if they have something for it
-        - The closest unoccupied thing that satisfies will be picked and a path returned
+        - If looking for work and a task has been assiged, that will be pursued.  Otherwise, the closest
+          unoccupied thing that satisfies will be picked and a path returned
         - If a bad target was previously acquired (bum_target) that'll be dropped from evaluation
           - bad targets: Unable to path
         """
@@ -421,8 +495,13 @@ class Mob(BaseObject):
                 self.use_item(in_inv[0])
                 return None
 
-            targets = self.game.find_need(self.satisfying)
-            self.target = self.determine_closest(targets)
+            if self.satisfying == "work" and self.get_tasks():
+                task = self.get_tasks()[0]
+                self.target = task.target
+            else:
+                targets = self.game.find_need(self.satisfying)
+                self.target = self.determine_closest(targets)
+
             if not self.target:
                 self.broadcast(f"{self.name} can't satisfy {self.satisfying}")
             else:
@@ -548,10 +627,8 @@ class Mob(BaseObject):
                 appliances[0].use(self)
 
     def use_item(self, item):
+        ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
         item.use(self)
-        if item.durability <= 0:
-            self.inventory = list(filter(lambda x: x is not item, self.inventory))
-            del item
 
     def pickup_item(self, item):
         self.game.remove_tile_content(item)
@@ -571,7 +648,8 @@ class Mob(BaseObject):
         attrs = list(self.needs)
         attrs += ["target", "satisfying"]
         broken = [x.name for x in self.memories.broken_items]
-        return details + attrFormatter(attrs, self, override={"broken": broken})
+        tasks = [f"{x.name}: {x.target.name}" for x in self.get_tasks()]
+        return details + attrFormatter(attrs, self, override={"broken": broken, "tasks": tasks})
 
 
 class PopUpMenu():
@@ -651,6 +729,8 @@ class GameInstance():
             ObjType.item: [],
             ObjType.mob: []
         }
+        self.emitters = []
+        self.work_requests = []
 
         self.game_msgs = []
         self.turns = 0
@@ -664,6 +744,19 @@ class GameInstance():
                         worker.tick_needs()
                     continue
                 worker.take_turn()
+
+    def assign_requests(self):
+        unassigned = filter(lambda x: x.assignee is None, self.work_requests)
+        for job in unassigned:
+            candidates = filter(lambda x: x.job == job.job and not x.get_tasks(), self.world_objs[ObjType.mob])
+            for c in candidates:
+                c.add_task(job)
+                print(f"{c.name} assigned to {job.name}: {job.target.name}")
+                break
+
+    def complete_request(self, job):
+        self.work_requests = [x for x in self.work_requests if x is not job]
+        del job
 
     def render_all(self):
         for obj_type in self.world_objs:
@@ -785,6 +878,7 @@ class GameInstance():
 
     def delete_object(self, obj):
         self.remove_tile_content(obj)
+        self.submit_event(obj, getattr(obj, "on_destroy", {}))
         del obj
 
     def create_object(self, x, y, obj_params):
@@ -802,8 +896,41 @@ class GameInstance():
             obj = Mob(**obj_params)
 
         self.add_tile_content(obj)
+        self.submit_event(obj, getattr(obj, "on_create", {}))
 
         return obj
+
+    def transform_object(self, obj, new):
+        # TODO: This doesn't exactly work for items in inventory
+        new = game_objects.get(new)
+        if new:
+            self.create_object(obj.x, obj.y, new)
+            self.delete_object(obj)
+
+    def submit_event(self, obj, event):
+        if not event:
+            return None
+
+        if event.get("request"):
+            self.log_request(obj, event["request"])
+        if event.get("become"):
+            self.transform_object(obj, event["become"])
+        if event.get("emits"):
+            self.log_emitter(obj, event["emits"])
+
+    def log_emitter(self, obj, thought):
+        # TODO: Implement emitted auras
+        # Auras passed as thoughts to workers when adjacent on emitter
+        # Need to handle auras on init but, more importantly, temporary
+        # state-based auras (i.e. on_dirty) - need to know when temps end
+        pass
+
+    def log_request(self, obj, request):
+        job_request = work_requests.get(request)
+        if job_request:
+            job_request.update({"target": obj})
+            job = WorkRequest(**job_request)
+            self.work_requests(job)
 
     def create_coworker(self, x, y, creating_player=False):
         params = {

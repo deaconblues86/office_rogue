@@ -1,0 +1,33 @@
+{
+    "Repair": {
+        "name": "Repair",
+        "target_stat": "durability",
+        "modifier": 0,
+        "new_value": 100,
+        "job": "maintenance"
+    },
+    "Restock": {
+        "name": "Restock",
+        "target_func": "restock_items",
+        "job": "maintenance"
+    },
+    "Service": {
+        "name": "Service",
+        "target_stat": "durability",
+        "modifier": 0,
+        "new_value": 100,
+        "job": "it"
+    },
+    "Clean Up": {
+        "name": "Clean Up",
+        "target_func": "destroy",
+        "job": "housekeeping"
+    },
+    "Clean": {
+        "name": "Clean",
+        "target_stat": "cleanliness",
+        "modifier": 0,
+        "new_value": 100,
+        "job": "housekeeping"
+    }
+}
