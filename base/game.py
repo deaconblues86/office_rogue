@@ -231,6 +231,7 @@ class Item(BaseObject):
         self.satisfies = satisfies
         self.use_func_repr = use_func
         self.owner = owner
+        self.in_inventory = None
 
         self.on_broken = kwargs.get("on_broken")
         self.on_dirty = kwargs.get("on_dirty")
@@ -254,6 +255,17 @@ class Item(BaseObject):
     def _use_func(self, target):
         self.broadcast(f"{self.name.capitalize} has no use!", "red")
         return 0, 0
+
+    def move_to_inventory(self, holder):
+        holder.inventory.append(self)
+        self.in_inventory = holder
+        self.game.remove_tile_content(self)
+
+    def drop_from_inventory(self, holder):
+        holder.inventory = list(filter(lambda x: x is not self, holder.inventory))
+        self.x, self. y = holder.x, holder.y
+        self.game.add_tile_content(self)
+        self.in_inventory = None
 
     def eval_events(self):
         if self.durability <= 0:
@@ -291,7 +303,7 @@ class Vendor(BaseObject):
             while curr_stock < item["max_stock"]:
                 curr_stock += 1
                 obj = Item(**obj_params)
-                self.inventory.append(obj)
+                obj.move_to_inventory(self)
 
     def use(self, user):
         """
@@ -325,7 +337,7 @@ class Vendor(BaseObject):
 
         self.inventory = list(filter(lambda x: x is not item, self.inventory))
         item.owner = user
-        user.inventory.append(item)
+        item.move_to_inventory(user)
         user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
 
         if not self.inventory:
@@ -631,13 +643,10 @@ class Mob(BaseObject):
         item.use(self)
 
     def pickup_item(self, item):
-        self.game.remove_tile_content(item)
-        self.inventory.append(item)
+        item.move_to_inventory(self)
 
     def drop_item(self, item):
-        self.inventory = list(filter(lambda x: x is not item, self.inventory))
-        item.x, item.y = self.x, self.y
-        self.game.add_tile_content(item)
+        item.drop_from_inventory(self)
 
     def inventory_full(self):
         return len(self.inventory) == self.max_inventory
@@ -876,12 +885,15 @@ class GameInstance():
         self.game_map.remove_object(obj)
         self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 
-    def delete_object(self, obj):
+    def delete_object(self, obj, in_inventory=None):
+        if in_inventory:
+            obj.drop_from_inventory(in_inventory)
+
         self.remove_tile_content(obj)
         self.submit_event(obj, getattr(obj, "on_destroy", {}))
         del obj
 
-    def create_object(self, x, y, obj_params):
+    def create_object(self, x, y, obj_params, in_inventory=None):
         obj_params.update({"game": self, "x": x, "y": y})
 
         if obj_params["obj_type"] == "static":
@@ -895,8 +907,12 @@ class GameInstance():
         elif obj_params["obj_type"] == "mob":
             obj = Mob(**obj_params)
 
-        self.add_tile_content(obj)
         self.submit_event(obj, getattr(obj, "on_create", {}))
+
+        if in_inventory:
+            obj.in_inventory = in_inventory
+        else:
+            self.add_tile_content(obj)
 
         return obj
 
@@ -904,8 +920,8 @@ class GameInstance():
         # TODO: This doesn't exactly work for items in inventory
         new = game_objects.get(new)
         if new:
-            self.create_object(obj.x, obj.y, new)
-            self.delete_object(obj)
+            self.create_object(obj.x, obj.y, new, in_inventory=obj.in_inventory)
+            self.delete_object(obj, in_inventory=obj.in_inventory)
 
     def submit_event(self, obj, event):
         if not event:
