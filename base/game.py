@@ -102,10 +102,10 @@ class WorkRequest():
         self.name = name
         self.job = job
         self.target = target
-        self.target_stat = target
-        self.target_func = target
-        self.modifier = target
-        self.new_value = target
+        self.target_stat = target_stat
+        self.target_func = target_func
+        self.modifier = modifier
+        self.new_value = new_value
 
         self.assignee = None
 
@@ -183,6 +183,9 @@ class Memories():
         finally:
             self.broken_items.append(obj)
 
+    def finish_job(self, job):
+        self.work_tasks = [x for x in self.work_tasks if x is not job]
+
 
 class BaseObject():
     def __init__(self, game, name, x, y, char, color, obj_type, blocks=False, durability=100, **kwargs):
@@ -226,7 +229,7 @@ class BaseObject():
 
 
 class Item(BaseObject):
-    def __init__(self, satisfies, use_func, owner=None, *args, **kwargs):
+    def __init__(self, satisfies, use_func=None, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
         self.use_func_repr = use_func
@@ -355,7 +358,7 @@ class Mob(BaseObject):
     max_inventory = 4
     needs = ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
 
-    def __init__(self, social, hunger, thirst, bladder, bowels, energy, gender, job, work_objs, *args, **kwargs):
+    def __init__(self, social, hunger, thirst, bladder, bowels, energy, gender, job, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.social = social
         self.hunger = hunger
@@ -368,7 +371,6 @@ class Mob(BaseObject):
 
         self.gender = gender
         self.job = job
-        self.work_objs = work_objs
         self.inventory = []
         self.path = []
 
@@ -378,6 +380,7 @@ class Mob(BaseObject):
         # - waiting: Allows coworker to wait, for a time, while their path clears
         # - memories: Stores experiances of the coworker
         self.target = None
+        self.target_job = None
         self.satisfying = None
         self.waiting = 0
         self.memories = Memories(self)
@@ -430,9 +433,11 @@ class Mob(BaseObject):
         job.assignee = self
         self.memories.work_tasks.append(job)
 
-    def remove_task(self, job):
-        self.memories.work_tasks = [x for x in self.memories.work_tasks if x is not job]
-        self.game.complete_request(job)
+    def remove_task(self):
+        self.memories.finish_job(self.target_job)
+        self.game.complete_request(self.target_job)
+        print(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}")
+        self.target_job = None
 
     def broken_target(self, obj):
         ''' Marks target as broken in memory and clears target '''
@@ -510,6 +515,7 @@ class Mob(BaseObject):
             if self.satisfying == "work" and self.get_tasks():
                 task = self.get_tasks()[0]
                 self.target = task.target
+                self.target_job = task
             else:
                 targets = self.game.find_need(self.satisfying)
                 self.target = self.determine_closest(targets)
@@ -633,10 +639,14 @@ class Mob(BaseObject):
         # Reached end of path or was player directed.
         # Will now use target object
         else:
-            # Assumes one usable object per tile
-            appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
-            if appliances:
-                appliances[0].use(self)
+            if self.target_job:
+                self.target_job.resolve_request()
+                self.remove_task()
+            else:
+                # Assumes one usable object per tile
+                appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
+                if appliances:
+                    appliances[0].use(self)
 
     def use_item(self, item):
         ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
@@ -747,6 +757,7 @@ class GameInstance():
     def run_coworkers(self):
         if not self.popup_open:
             self.turns += 1
+            self.assign_requests()
             for worker in self.world_objs[ObjType.mob]:
                 if worker is self.player:
                     if not self.player.fired:
@@ -762,6 +773,8 @@ class GameInstance():
                 c.add_task(job)
                 print(f"{c.name} assigned to {job.name}: {job.target.name}")
                 break
+            else:
+                print(f"No candidate found for {job.name} of {job.target.name}")
 
     def complete_request(self, job):
         self.work_requests = [x for x in self.work_requests if x is not job]
@@ -907,11 +920,11 @@ class GameInstance():
         elif obj_params["obj_type"] == "mob":
             obj = Mob(**obj_params)
 
-        self.submit_event(obj, getattr(obj, "on_create", {}))
-
         if in_inventory:
             obj.in_inventory = in_inventory
         else:
+            # TODO: This will work for now, but Trash won't trigger a clean up event when dropped
+            self.submit_event(obj, getattr(obj, "on_create", {}))
             self.add_tile_content(obj)
 
         return obj
@@ -946,7 +959,8 @@ class GameInstance():
         if job_request:
             job_request.update({"target": obj})
             job = WorkRequest(**job_request)
-            self.work_requests(job)
+            self.work_requests.append(job)
+            print(f"{job.name} logged for {job.target.name}")
 
     def create_coworker(self, x, y, creating_player=False):
         params = {
@@ -971,24 +985,24 @@ class GameInstance():
 
         # Rolling Dice on special jobs
         # TODO: Move special jobs out into Defs
-        if not creating_player and random.randint(0, 100) < 26:
-            if random.randint(0, 100) < 50:
+        if not creating_player and random.randint(0, 100) < 5:
+            rand = random.randint(0, 100)
+            if rand <= 33:
                 params["job"] = "maintenance"
                 params["color"] = "light_blue"
-                params["work_objs"] = [
-                    'Toilet', 'Urinal', 'Sink', 'Coffee Maker', 'Microwave', 'Refrigerator', 'Vending Machine'
-                ]
+
+            elif 33 < rand and rand <= 66:
+                params["job"] = "housekeeping"
+                params["color"] = "light_violet"
 
             else:
                 params["job"] = "it"
                 params["color"] = "light_green"
-                params["work_objs"] = ['Terminal']
 
         # Player will always have standard job for now
         else:
             params["job"] = "standard"
             params["color"] = "light_yellow"
-            params["work_objs"] = ['Terminal', 'Desk']
 
         if creating_player:
             params["color"] = "white"
