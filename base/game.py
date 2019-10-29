@@ -16,6 +16,7 @@ from constants import (
     female_names,
     male_names,
     game_objects,
+    game_jobs,
     game_auras,
     work_requests,
 )
@@ -238,6 +239,7 @@ class Item(BaseObject):
 
         self.on_broken = kwargs.get("on_broken")
         self.on_dirty = kwargs.get("on_dirty")
+        self.on_drop = kwargs.get("on_drop")
 
         # Get actual function from string repr
         if self.use_func_repr:
@@ -266,9 +268,10 @@ class Item(BaseObject):
 
     def drop_from_inventory(self, holder):
         holder.inventory = list(filter(lambda x: x is not self, holder.inventory))
-        self.x, self. y = holder.x, holder.y
+        self.x, self.y = holder.x, holder.y
         self.game.add_tile_content(self)
         self.in_inventory = None
+        self.game.submit_event(self, self.on_drop)
 
     def eval_events(self):
         if self.durability <= 0:
@@ -319,6 +322,7 @@ class Vendor(BaseObject):
             self.game.init_popup(self.name.capitalize(), options=self.inventory, popup_func=self.dispense)
         else:
             # AI will choose first item to satisfy their needs
+            # If satisfying isn't found, they'll consider it broken
             desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
             for item in desired:
                 self.dispense(item, user)
@@ -574,6 +578,16 @@ class Mob(BaseObject):
             return None
 
         self.tick_needs()
+        # TODO: Currently dropping Trash, stuff that doesn't satisfy where ever
+        # May want to look for Trash Can at some point
+        # Dropping first Trash item found when inventory full
+        if self.inventory_full():
+            trash = filter(lambda x: x.satisfies not in self.needs, self.inventory)
+            for t in trash:
+                print(f"{self.name} dropped {t.name}")
+                self.drop_item(t)
+                break
+
         # If not preoccupied, check needs and do stuff
         if not self.occupied:
             self.check_needs()
@@ -665,7 +679,7 @@ class Mob(BaseObject):
         """ Dumps pertinent object attributes for user to view """
         details = super().dump()
         attrs = list(self.needs)
-        attrs += ["target", "satisfying"]
+        attrs += ["target", "satisfying", "job"]
         broken = [x.name for x in self.memories.broken_items]
         tasks = [f"{x.name}: {x.target.name}" for x in self.get_tasks()]
         return details + attrFormatter(attrs, self, override={"broken": broken, "tasks": tasks})
@@ -768,7 +782,9 @@ class GameInstance():
     def assign_requests(self):
         unassigned = filter(lambda x: x.assignee is None, self.work_requests)
         for job in unassigned:
-            candidates = filter(lambda x: x.job == job.job and not x.get_tasks(), self.world_objs[ObjType.mob])
+            candidates = sorted(
+                filter(lambda x: x.job == job.job, self.world_objs[ObjType.mob]), key=lambda x: len(x.get_tasks())
+            )
             for c in candidates:
                 c.add_task(job)
                 print(f"{c.name} assigned to {job.name}: {job.target.name}")
@@ -923,14 +939,12 @@ class GameInstance():
         if in_inventory:
             obj.in_inventory = in_inventory
         else:
-            # TODO: This will work for now, but Trash won't trigger a clean up event when dropped
             self.submit_event(obj, getattr(obj, "on_create", {}))
             self.add_tile_content(obj)
 
         return obj
 
     def transform_object(self, obj, new):
-        # TODO: This doesn't exactly work for items in inventory
         new = game_objects.get(new)
         if new:
             self.create_object(obj.x, obj.y, new, in_inventory=obj.in_inventory)
@@ -962,7 +976,7 @@ class GameInstance():
             self.work_requests.append(job)
             print(f"{job.name} logged for {job.target.name}")
 
-    def create_coworker(self, x, y, creating_player=False):
+    def create_coworker(self, x, y, job="analyst", creating_player=False):
         params = {
             "char": "@",
             "satisfies": ['social'],
@@ -985,26 +999,12 @@ class GameInstance():
 
         # Rolling Dice on special jobs
         # TODO: Move special jobs out into Defs
-        if not creating_player and random.randint(0, 100) < 5:
-            rand = random.randint(0, 100)
-            if rand <= 33:
-                params["job"] = "maintenance"
-                params["color"] = "light_blue"
+        if not creating_player:
+            params["job"] = game_jobs[job]["name"]
+            params["color"] = game_jobs[job]["color"]
 
-            elif 33 < rand and rand <= 66:
-                params["job"] = "housekeeping"
-                params["color"] = "light_violet"
-
-            else:
-                params["job"] = "it"
-                params["color"] = "light_green"
-
-        # Player will always have standard job for now
         else:
-            params["job"] = "standard"
-            params["color"] = "light_yellow"
-
-        if creating_player:
+            params["job"] = game_jobs[job]["name"]
             params["color"] = "white"
 
         coworker = self.create_object(x, y, params)

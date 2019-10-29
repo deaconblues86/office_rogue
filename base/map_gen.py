@@ -1,9 +1,11 @@
 import random
 import tcod
+from math import ceil
 from numpy import array
 from constants import (
     room_types,
     game_objects,
+    game_jobs,
     interiorRect,
     HALL_WIDTH,
     LIMITED_ROOMS,
@@ -209,19 +211,27 @@ class MapGenerator():
         print("Creating Player")
         player_terminal.owner = self.game.player = player
 
-        temp_count = len(terminals) / 2
-        for t in terminals:
-            if temp_count == 0:
-                break
+        temp_count = min(len(terminals) / 2, 10)
+        req_job_counts = {
+            game_jobs[x]["name"]: ceil(temp_count * game_jobs[x].get("pop_percentage", 0))
+            for x in game_jobs
+        }
+        if sum(req_job_counts.values()) > len(terminals):
+            print(f"Too many jobs for {len(terminals)} terminals")
 
-            adj_tiles = [x for x in t.adjacent() if not x.blocked]
-            x = adj_tiles[0].x
-            y = adj_tiles[0].y
+        for job in req_job_counts:
+            for worker in range(req_job_counts[job]):
+                try:
+                    t = terminals.pop(0)
+                except IndexError:
+                    pass
+                else:
+                    adj_tiles = [x for x in t.adjacent() if not x.blocked]
+                    x = adj_tiles[0].x
+                    y = adj_tiles[0].y
 
-            coworker = self.game.create_coworker(x, y)
-            t.owner = coworker
-
-            temp_count -= 1
+                    coworker = self.game.create_coworker(x, y, job=job)
+                    t.owner = coworker
 
     def create_room(self, room, rtype, flip):
 

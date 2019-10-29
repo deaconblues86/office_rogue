@@ -65,6 +65,9 @@ with open("defs/rooms.txt") as room_file:
 with open("defs/objects.json") as obj_file:
     game_objects = json.loads(obj_file.read())
 
+with open("defs/jobs.json") as obj_file:
+    game_jobs = json.loads(obj_file.read())
+
 with open("defs/requests.json") as req_file:
     work_requests = json.loads(req_file.read())
 

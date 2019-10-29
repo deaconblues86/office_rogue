@@ -7,7 +7,7 @@
         "satisfies": [],
         "use_func": null,
         "obj_type": "appliance",
-        "on_item_out": {
+        "on_no_stock": {
             "request": "Restock"
         }
     },
@@ -238,7 +238,7 @@
         "satisfies": ["clean"],
         "emits": "Grossed Out",
         "obj_type": "item",
-        "on_create": {
+        "on_drop": {
             "request": "Clean Up"
         }
     }

@@ -1,0 +1,22 @@
+{
+    "maintenance": {
+        "name": "maintenance",
+        "color": "light_blue",
+        "pop_percentage": 0.15
+    },
+    "housekeeping": {
+        "name": "housekeeping",
+        "color": "light_violet",
+        "pop_percentage": 0.15
+    },
+    "it": {
+        "name": "it",
+        "color": "light_green",
+        "pop_percentage": 0.15
+    },
+    "analyst": {
+        "name": "analyst",
+        "color": "light_yellow",
+        "pop_percentage": 0.55
+    }
+}
