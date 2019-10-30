@@ -6,6 +6,7 @@ from tcod.console import Console
 from tcod.event import EventDispatch
 from base.enums import ObjType
 from constants import (
+    screen_width,
     map_width,
     map_height,
     BAR_WIDTH,
@@ -99,7 +100,9 @@ class Dispatcher(EventDispatch):
 
 
 class WorkRequest():
-    def __init__(self, name, job, target, target_stat=None, target_func=None, modifier=None, new_value=None):
+    def __init__(
+        self, name, job, target, target_stat=None, target_func=None, modifier=None, new_value=None, reward=None
+    ):
         self.name = name
         self.job = job
         self.target = target
@@ -107,6 +110,8 @@ class WorkRequest():
         self.target_func = target_func
         self.modifier = modifier
         self.new_value = new_value
+
+        self.reward = reward
 
         self.assignee = None
 
@@ -132,6 +137,21 @@ class WorkRequest():
                 )
         elif self.target_stat and self.new_value:
             setattr(self.target, self.target_stat, self.new_value)
+
+        self.collect_reward()
+
+    def collect_reward(self):
+        if self.reward["target_stat"]:
+            reward_stat = self.reward["target_stat"]
+            reward_mod = self.reward["modifier"]
+            setattr(
+                self.assignee,
+                reward_stat,
+                min(
+                        getattr(self.assignee, reward_stat) + reward_mod,
+                        getattr(self.assignee, f"max_{reward_stat}")
+                    )
+            )
 
 
 class Thought():
@@ -175,12 +195,13 @@ class Memories():
         '''
         Try to pop already found broken obj from list if present
         Add broken object to end of list
+        - pop done to "refresh" memory
         '''
         try:
             i = self.broken_items.index(obj)
             self.broken_items.pop(i)
         except ValueError:
-            print(f"newly found broken object: {obj.name}")
+            pass
         finally:
             self.broken_items.append(obj)
 
@@ -235,15 +256,18 @@ class Item(BaseObject):
         self.satisfies = satisfies
         self.use_func_repr = use_func
         self.owner = owner
-        self.in_inventory = None
+        self.holder = None
 
         self.on_broken = kwargs.get("on_broken")
         self.on_dirty = kwargs.get("on_dirty")
         self.on_drop = kwargs.get("on_drop")
 
         # Get actual function from string repr
+        # If none is found, will use default private func
         if self.use_func_repr:
             self.use_func = getattr(object_funcs, self.use_func_repr, self._use_func)
+        else:
+            self.use_func = self._use_func
 
     def use(self, user):
         if self.owner and self.owner is not user:
@@ -258,19 +282,19 @@ class Item(BaseObject):
             self.eval_events()
 
     def _use_func(self, target):
-        self.broadcast(f"{self.name.capitalize} has no use!", "red")
+        self.broadcast(f"{self.name.capitalize()} has no use!", "red")
         return 0, 0
 
     def move_to_inventory(self, holder):
         holder.inventory.append(self)
-        self.in_inventory = holder
+        self.holder = holder
         self.game.remove_tile_content(self)
 
     def drop_from_inventory(self, holder):
         holder.inventory = list(filter(lambda x: x is not self, holder.inventory))
         self.x, self.y = holder.x, holder.y
         self.game.add_tile_content(self)
-        self.in_inventory = None
+        self.holder = None
         self.game.submit_event(self, self.on_drop)
 
     def eval_events(self):
@@ -414,7 +438,7 @@ class Mob(BaseObject):
         self.work_drain = -1
 
         phone_params = game_objects["Cellphone"]
-        phone_params.update({"game": self, "x": 0, "y": 0})
+        phone_params.update({"game": self.game, "x": 0, "y": 0})
         phone = Item(**phone_params)
         self.inventory.append(phone)
 
@@ -578,11 +602,11 @@ class Mob(BaseObject):
             return None
 
         self.tick_needs()
-        # TODO: Currently dropping Trash, stuff that doesn't satisfy where ever
+        # TODO: Currently dropping Trash, stuff that doesn't satisfy, where ever
         # May want to look for Trash Can at some point
         # Dropping first Trash item found when inventory full
         if self.inventory_full():
-            trash = filter(lambda x: x.satisfies not in self.needs, self.inventory)
+            trash = filter(lambda x: any(s not in self.needs for s in x.satisfies), self.inventory)
             for t in trash:
                 print(f"{self.name} dropped {t.name}")
                 self.drop_item(t)
@@ -600,7 +624,7 @@ class Mob(BaseObject):
         # Dest. has been reached -> use target, clear target, clear state
         if not self.path:
             next_tile = self.game.get_tile(self.target.x, self.target.y)
-            self.move(next_tile)
+            self.move(next_tile, arrived=True)
             self.target = None
             self.state = ""
             return None
@@ -627,16 +651,17 @@ class Mob(BaseObject):
             else:
                 self.broadcast(f"{self.name} is waiting...")
 
-    def move(self, dest_tile, swapping=False):
+    def move(self, dest_tile, swapping=False, arrived=False):
         """
         Handles Player and Coworker Move actions.  If player 'moves' into tile of appliance,
         appliance will be used instead.  Likewise, Coworkers will be directed to do the same
         - dest_tile: Tile to be moved to/use
         - swapping: When True, overrides typical blocked check to allow to coworkers to exchange
           positions if they both want to be in each others' spots
+        - arrived: When True, coworker will use target/resolve job.  Needed for when target does not block
         """
         # Standard Move action
-        if not dest_tile.blocked or swapping:
+        if (not dest_tile.blocked or swapping) and not arrived:
             self.game.remove_tile_content(self)
             self.game.update_pathmap(self.x, self.y)
             self.x = dest_tile.x
@@ -651,7 +676,7 @@ class Mob(BaseObject):
                 pass
 
         # Reached end of path or was player directed.
-        # Will now use target object
+        # Will now use target object/resolve request
         else:
             if self.target_job:
                 self.target_job.resolve_request()
@@ -680,9 +705,10 @@ class Mob(BaseObject):
         details = super().dump()
         attrs = list(self.needs)
         attrs += ["target", "satisfying", "job"]
+        inv = [x.name for x in self.inventory]
         broken = [x.name for x in self.memories.broken_items]
         tasks = [f"{x.name}: {x.target.name}" for x in self.get_tasks()]
-        return details + attrFormatter(attrs, self, override={"broken": broken, "tasks": tasks})
+        return details + attrFormatter(attrs, self, override={"broken": broken, "tasks": tasks, "inventory": inv})
 
 
 class PopUpMenu():
@@ -862,6 +888,19 @@ class GameInstance():
         self.popup_func = popup_func
         self.popup.load_options(title, msg, [x.name for x in self.popup_options])
 
+    def render_tasks(self):
+        x = map_width
+        self.root_console.print(x=x, y=0, string="Tasks")
+        self.root_console.print(x=x, y=1, string="-" * (screen_width - map_width))
+
+        y = 2
+        for task in self.work_requests:
+            self.root_console.print(x=x, y=y, string=task.name)
+            self.root_console.print(x=x, y=y+1, string=f" Asn: {getattr(task.assignee, 'name', '')}")
+            self.root_console.print(x=x, y=y+2, string=f" Trg: {task.target.name}")
+            self.root_console.print(x=x, y=y+3, string=f" Loc: {task.target.x}, {task.target.y}")
+            y += 4
+
     def find_need(self, need):
         satisfies = []
         for obj_type in [ObjType.appliance, ObjType.vendor, ObjType.item]:
@@ -914,15 +953,15 @@ class GameInstance():
         self.game_map.remove_object(obj)
         self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 
-    def delete_object(self, obj, in_inventory=None):
-        if in_inventory:
-            obj.drop_from_inventory(in_inventory)
+    def delete_object(self, obj, holder=None):
+        if holder:
+            obj.drop_from_inventory(holder)
 
         self.remove_tile_content(obj)
         self.submit_event(obj, getattr(obj, "on_destroy", {}))
         del obj
 
-    def create_object(self, x, y, obj_params, in_inventory=None):
+    def create_object(self, x, y, obj_params, holder=None):
         obj_params.update({"game": self, "x": x, "y": y})
 
         if obj_params["obj_type"] == "static":
@@ -936,8 +975,9 @@ class GameInstance():
         elif obj_params["obj_type"] == "mob":
             obj = Mob(**obj_params)
 
-        if in_inventory:
-            obj.in_inventory = in_inventory
+        if holder:
+            obj.move_to_inventory(holder)
+
         else:
             self.submit_event(obj, getattr(obj, "on_create", {}))
             self.add_tile_content(obj)
@@ -947,8 +987,10 @@ class GameInstance():
     def transform_object(self, obj, new):
         new = game_objects.get(new)
         if new:
-            self.create_object(obj.x, obj.y, new, in_inventory=obj.in_inventory)
-            self.delete_object(obj, in_inventory=obj.in_inventory)
+            self.create_object(obj.x, obj.y, new, holder=obj.holder)
+            self.delete_object(obj, holder=obj.holder)
+        else:
+            print(f"New object not found: {new}")
 
     def submit_event(self, obj, event):
         if not event:
@@ -969,9 +1011,15 @@ class GameInstance():
         pass
 
     def log_request(self, obj, request):
+        '''
+        Logs unique requests (based on obj & request type) to be performed
+        '''
         job_request = work_requests.get(request)
         if job_request:
             job_request.update({"target": obj})
+            if (job_request["name"], job_request["target"]) in ((x.name, x.target) for x in self.work_requests):
+                return None
+
             job = WorkRequest(**job_request)
             self.work_requests.append(job)
             print(f"{job.name} logged for {job.target.name}")
@@ -1013,7 +1061,6 @@ class GameInstance():
     # Sets up key_bindings
     def handle_keys(self, event):
         key = event.sym
-        print(event, event.sym)
 
         # Handle pop up options
         if self.popup_open:
@@ -1034,10 +1081,10 @@ class GameInstance():
             if key_map.get(key) == "exit":
                 raise SystemExit()
 
-            if key_map.get(key) == "space":
+            elif key_map.get(key) == "space":
                 self.init_popup("Paused")
 
-            if key_map.get(key) in ("up", "num8"):
+            elif key_map.get(key) in ("up", "num8"):
                 self.player_move_or_use(0, -1)
 
             elif key_map.get(key) == "num7":
@@ -1049,16 +1096,16 @@ class GameInstance():
             elif key_map.get(key) == "num1":
                 self.player_move_or_use(-1, 1)
 
-            if key_map.get(key) in ("down", "num2"):
+            elif key_map.get(key) in ("down", "num2"):
                 self.player_move_or_use(0, 1)
 
             elif key_map.get(key) == "num3":
                 self.player_move_or_use(1, 1)
 
-            if key_map.get(key) in ("right", "num6"):
+            elif key_map.get(key) in ("right", "num6"):
                 self.player_move_or_use(1, 0)
 
-            if key_map.get(key) in ("left", "num4"):
+            elif key_map.get(key) in ("left", "num4"):
                 self.player_move_or_use(-1, 0)
 
             elif key == ord("."):
@@ -1080,3 +1127,6 @@ class GameInstance():
                     options=self.player.inventory,
                     popup_func=self.player.drop_item
                 )
+
+            else:
+                print(event, event.sym)

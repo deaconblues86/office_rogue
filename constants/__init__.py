@@ -2,7 +2,7 @@ import json
 import tcod
 from base.map import Rect
 
-ROOM_SECTOR_X = 22
+ROOM_SECTOR_X = 18
 ROOM_SECTOR_Y = 22
 HALL_WIDTH = 3
 OUTSIDE_BORDER = 4
@@ -27,7 +27,7 @@ map_width = interior_x + (OUTSIDE_BORDER * 2)
 map_height = interior_y + (OUTSIDE_BORDER * 2)
 
 # Adding Padding to Screen to allow for UI
-screen_width = map_width + 10
+screen_width = map_width + 16
 screen_height = map_height + 7
 
 BAR_WIDTH = 20

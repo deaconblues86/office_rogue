@@ -32,6 +32,7 @@ with tcod.console_init_root(
         game.render_all()
         game.render_bars()
         game.render_messages()
+        game.render_tasks()
         tcod.console_flush()  # Show the console.
 
         # if not game.player.occupied:

@@ -4,30 +4,50 @@
         "target_stat": "durability",
         "modifier": 0,
         "new_value": 100,
-        "job": "maintenance"
+        "job": "maintenance",
+        "reward": {
+            "target_stat": "work",
+            "modifier": 50
+        }
     },
     "Restock": {
         "name": "Restock",
         "target_func": "restock_items",
-        "job": "maintenance"
+        "job": "maintenance",
+        "reward": {
+            "target_stat": "work",
+            "modifier": 50
+        }
     },
     "Service": {
         "name": "Service",
         "target_stat": "durability",
         "modifier": 0,
         "new_value": 100,
-        "job": "it"
+        "job": "it",
+        "reward": {
+            "target_stat": "work",
+            "modifier": 50
+        }
     },
     "Clean Up": {
         "name": "Clean Up",
         "target_func": "destroy",
-        "job": "housekeeping"
+        "job": "housekeeping",
+        "reward": {
+            "target_stat": "work",
+            "modifier": 50
+        }
     },
     "Clean": {
         "name": "Clean",
         "target_stat": "cleanliness",
         "modifier": 0,
         "new_value": 100,
-        "job": "housekeeping"
+        "job": "housekeeping",
+        "reward": {
+            "target_stat": "work",
+            "modifier": 50
+        }
     }
 }
