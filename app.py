@@ -2,6 +2,7 @@ import tcod
 import tcod.event as Event
 
 from base.game import Dispatcher, GameInstance
+from base.renderer import Renderer
 from base.map_gen import MapGenerator
 from constants import screen_width, screen_height, colors
 
@@ -11,14 +12,12 @@ tcod.console_set_custom_font(
     tcod.FONT_LAYOUT_TCOD | tcod.FONT_TYPE_GREYSCALE,
 )
 
-# Pull bg color
-bg_color = tuple(colors["black"])
-
 # Initialize the root console in a context.
 with tcod.console_init_root(
     screen_width, screen_height, order="F", renderer=tcod.RENDERER_SDL2, vsync=True
 ) as root_console:
-    game = GameInstance(root_console)
+    game = GameInstance()
+    renderer = Renderer(game, root_console)
     dispatcher = Dispatcher(game)
     map_gen = MapGenerator(game)
 
@@ -29,10 +28,10 @@ with tcod.console_init_root(
     iters = 0
     while True:
         iters += 1
-        game.render_all()
-        game.render_bars()
-        game.render_messages()
-        game.render_tasks()
+        renderer.render_all()
+        renderer.render_bars()
+        renderer.render_messages()
+        renderer.render_tasks()
         tcod.console_flush()  # Show the console.
 
         # if not game.player.occupied:
@@ -49,4 +48,4 @@ with tcod.console_init_root(
             game.run_coworkers()
             iters = 0
 
-        root_console.clear(bg=bg_color)
+        renderer.clear()
