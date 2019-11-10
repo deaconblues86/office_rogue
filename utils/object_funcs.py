@@ -6,27 +6,6 @@ Expectation is that work functions return the items wear/dirtiness so as to redu
 '''
 
 from random import randint
-from constants import colors
-
-
-def mob_fired(mob):
-    mob.broadcast(mob.name.capitalize() + " is fired!", "orange")
-    mob.char = "%"
-    mob.color = colors["dark_red"]
-    mob.blocks = False
-    mob.name = "remains of " + mob.name
-    mob.state = "fired"
-    mob.fired = True
-
-
-def mob_quits(mob):
-    mob.broadcast(mob.name.capitalize() + " quits!", "orange")
-    mob.char = "%"
-    mob.color = colors["dark_red"]
-    mob.blocks = False
-    mob.name = "remains of " + mob.name
-    mob.state = "fired"
-    mob.fired = True
 
 
 def cellphone_func(user):
@@ -43,7 +22,7 @@ def toilet_func(user):
     user.broadcast(user.name.capitalize() + " uses the toilet", "white")
     user.state = "success: " + user.state
     user.occupied += 4
-    return randint(5, 10), randint(10, 15)  # Wearing out / Making object dirty
+    return randint(5, 10), randint(5, 10)  # Wearing out / Making object dirty
 
 
 def urinal_func(user):
@@ -100,25 +79,3 @@ def desk_func(user):
     user.broadcast(user.name.capitalize() + " uses their desk", "white")
     user.occupied += 8
     return randint(5, 10), 0  # Wearing out / Making object dirty
-
-
-def repair_func(user, target):
-    energy_ratio = user.energy / user.max_energy
-    work_gain = int(user.max_work * (energy_ratio * 0.3))
-    user.work = min(user.work + work_gain, user.max_work)
-    user.energy = max(int(user.energy - (work_gain * 0.25)), 0)
-    user.broadcast(user.name.capitalize() + " repairs the " + target.name.capitalize(), "white")
-    user.state = "success: " + user.state
-
-    # Currently setting up repair to add durability to target equal to work put it
-    target.durability = min(target.durability + work_gain, 100)
-    target.state = ""
-    target.color = target.orig_color
-
-
-def clean_func(target):
-    # Function to handle clean up of waste & restore work for cleaners
-    # TODO: Use Funcs tend to operate on the user, this one needs to operate on itself
-    # Dump in favor of something like a work_func
-    # Could be repurpsed to impact mood, but won't be used at present since doesn't block
-    return 100

@@ -1,12 +1,13 @@
 import math
 from base.items import BaseObject, Item, attrFormatter
 from utils import object_funcs
-from constants import game_objects
+from constants import game_objects, colors
 
 
 class WorkRequest():
     def __init__(
-        self, name, job, target, target_stat=None, target_func=None, modifier=None, new_value=None, reward=None
+        self, name, job, target,
+        target_stat=None, target_func=None, modifier=None, new_value=None, occupied=0, reward=None
     ):
         self.name = name
         self.job = job
@@ -16,6 +17,7 @@ class WorkRequest():
         self.modifier = modifier
         self.new_value = new_value
 
+        self.occupied = occupied
         self.reward = reward
 
         self.assignee = None
@@ -43,6 +45,7 @@ class WorkRequest():
         elif self.target_stat and self.new_value:
             setattr(self.target, self.target_stat, self.new_value)
 
+        self.assignee.resolve_action(self.target, self.occupied)
         self.collect_reward()
 
     def collect_reward(self):
@@ -136,12 +139,15 @@ class Mob(BaseObject):
 
         # AI Controls
         # - target: That which the AI moves towards and plans to use
+        # - target_job: The particular job the AI is currently performing
         # - satisfying: The goal to be fulfilled upon usage
+        # - occupying: The item the worker is currently using
         # - waiting: Allows coworker to wait, for a time, while their path clears
         # - memories: Stores experiances of the coworker
         self.target = None
         self.target_job = None
         self.satisfying = None
+        self.occupying = None
         self.waiting = 0
         self.memories = Memories(self)
 
@@ -180,6 +186,7 @@ class Mob(BaseObject):
 
     @occupied.setter
     def occupied(self, value):
+        """ occupied floors at zero.  Increased by actions and ticks down once with needs check """
         self._occupied = max(value, 0)
         if self._occupied:
             self.char = '?'
@@ -207,16 +214,21 @@ class Mob(BaseObject):
     def determine_closest(self, targets):
         """
         Determines closest target from list that could satisfy needs and isn't occupied.
-        - Pathing in GameInstance can reject occupied targets as well if the situation changes
+        - Pathing in GameInstance can reject blocked targets as well if the situation changes
         - determine_closest only called when no target is held or when it was bad
         """
         min_distance = None
         closest = None
         targets = filter(lambda x: not x.owner or x.owner is self, targets)
         for target in targets:
-            # If no empty tiles, occupado
-            empty_tiles = list(filter(lambda x: not x.blocked, self.game.get_adjacent(target)))
-            if not empty_tiles:
+            # # If no empty tiles, occupado
+            # empty_tiles = list(filter(lambda x: not x.blocked, self.game.get_adjacent(target)))
+            # if not empty_tiles:
+            #     continue
+
+            # If target currently in use, skip it
+            if target.occupied_by:
+                print(f"{target.name}: {target.x},{target.y} occupied by {target.occupied_by.name}")
                 continue
 
             # If target has been held but is bad, skip it
@@ -238,7 +250,7 @@ class Mob(BaseObject):
 
     def calculate_target_path(self):
         """
-        Asks GameInstance for path to target. If target now occupied, nothing will be returned.
+        Asks GameInstance for path to target. If target now blocked, nothing will be returned.
         If its a bum target, keep for now, but know to exclude on next pass
         """
         self.path = self.game.find_path(self, self.target)
@@ -289,11 +301,17 @@ class Mob(BaseObject):
     def tick_needs(self):
         """
         Controls Mob state throught time
+        - Frees up worker occupation
+        - Ticks Mob Memories
         - Ticks Mob needs every four turns
-        - Frees up Mob as it's occupying action is performed
-        - Processes Special events as certain stats tank
+          - Processes Special events as certain stats tank
         """
+        # If not preoccupied, check needs and do stuff
         self.occupied -= 1
+        if not self.occupied and self.occupying:
+            self.occupying.occupied_by = None
+            self.occupying = None
+
         self.memories.tick_memories()
         if not self.game.turns % 4:
             self.mood_drain = 0
@@ -313,10 +331,10 @@ class Mob(BaseObject):
             # Draining mood based on unfufilled needs
             self.mood += self.mood_drain
             if self.work <= 0:
-                object_funcs.mob_fired(self)
+                self.mob_fired(self)
 
             if self.mood <= 0:
-                object_funcs.mob_quits(self)
+                self.mob_quits(self)
 
             if self.bladder <= 0:
                 urine = game_objects["Urine"]
@@ -329,7 +347,13 @@ class Mob(BaseObject):
                 self.bowels = self.max_bowels
 
     def take_turn(self):
-        """ Main AI Method called by GameInstance for each turn """
+        """
+        Main AI Method called by GameInstance for each turn
+        - Ticks Needs/Handles worker state
+        - Checks Inventory
+        - Frees up Mob as it's occupying action is performed
+        - Check whether occupied and, if not, do things
+        """
         if self.fired:
             return None
 
@@ -353,11 +377,10 @@ class Mob(BaseObject):
         if not self.target:
             return None
 
-        # Dest. has been reached -> use target, clear target, clear state
+        # Dest. has been reached -> use target, clear state
         if not self.path:
             next_tile = self.game.get_tile(self.target.x, self.target.y)
             self.move(next_tile, arrived=True)
-            self.target = None
             self.state = ""
             return None
 
@@ -417,11 +440,26 @@ class Mob(BaseObject):
                 # Assumes one usable object per tile
                 appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
                 if appliances:
-                    appliances[0].use(self)
+                    self.use_item(appliances[0])
+
+    def resolve_action(target, occupied=0):
+        # TODO: This should handle all this occupied_by/occupying/occupied business stuff
+        # Furthermore, needs to differentiate between straight item usage & work requests
+        # (which is really what kicked this off)
+
+        # Maybe just replace with a class that handles both the occupier and occupiee
+        # This could then be used to handle the little render flurishes you hope to add...
+        # (bubbles for cleaning, emotes for speaking, etc)
+        # This would still have to handle both items and requests indifferently, which could get muddled from a defs
+        # point of view (since they should be stored in JSON format)
+        pass
 
     def use_item(self, item):
         ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
         item.use(self)
+        item.occupied_by = self
+        self.occupying = item
+        self.target = None
 
     def pickup_item(self, item):
         item.move_to_inventory(self)
@@ -431,6 +469,24 @@ class Mob(BaseObject):
 
     def inventory_full(self):
         return len(self.inventory) == self.max_inventory
+
+    def mob_fired(self):
+        self.broadcast(self.name.capitalize() + " is fired!", "orange")
+        self.char = "%"
+        self.color = colors["dark_red"]
+        self.blocks = False
+        self.name = "remains of " + self.name
+        self.state = "fired"
+        self.fired = True
+
+    def mob_quits(self):
+        self.broadcast(self.name.capitalize() + " quits!", "orange")
+        self.char = "%"
+        self.color = colors["dark_red"]
+        self.blocks = False
+        self.name = "remains of " + self.name
+        self.state = "fired"
+        self.fired = True
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """

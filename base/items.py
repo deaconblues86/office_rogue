@@ -47,6 +47,7 @@ class BaseObject():
         if kwargs.get("blocks_sight"):
             self.blocks_sight = kwargs.get("blocks_sight")
 
+        self.occupied_by = None
         self.durability = durability
         self.cleanliness = 100
         self.state = ""

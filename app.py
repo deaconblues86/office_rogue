@@ -34,6 +34,8 @@ with tcod.console_init_root(
         renderer.render_tasks()
         tcod.console_flush()  # Show the console.
 
+        # TODO: This exists only to let the game tick while player is occupied
+        # No longer really applies so long as the game runs in realtime
         # if not game.player.occupied:
         #     player_busy = None
         # else:
@@ -41,6 +43,7 @@ with tcod.console_init_root(
 
         # TODO: While loop currently runs twice for each key press (up and down)
         # May not be a problem, but need to watch game ticks
+        # Think this only applies when blocking on keystrok event, which we're not anymore
         for event in Event.get():
             dispatcher.dispatch(event)
 
