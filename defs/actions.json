@@ -1,0 +1,62 @@
+{
+    "cleaning": {
+        "chars": ["&", "$", "o" "*"],
+        "color": "white",
+        "duration": 4
+    },
+    "repairing": {
+        "chars": ["^", "}", "{", "<", ">"],
+        "color": "grey",
+        "duration": 4
+    },
+    "chatting": {
+        "chars": ["!", "$", "#", "%"],
+        "color": "yellow",
+        "duration": 4
+    },
+    "surfing": {
+        "chars": ["1", "0", "-", "|"],
+        "color": "green",
+        "duration": 6
+    },
+    "pooing": {
+        "chars": [":", "(", "~"],
+        "color": "light_sepia",
+        "duration": 4
+    },
+    "peeing": {
+        "chars": [".", ";"],
+        "color": "light_yellow",
+        "duration": 2
+    },
+    "making_coffee": {
+        "chars": ["o", ".", "p"],
+        "color": "dark_sepia",
+        "duration": 2
+    },
+    "vending": {
+        "chars": ["$"],
+        "color": "light_green",
+        "duration": 1
+    },
+    "drinking_water": {
+        "chars": ["o", ".", "d"],
+        "color": "light_blue",
+        "duration": 1 
+    },
+    "snacking": {
+        "chars": ["x", "*", "!"],
+        "color": "orange",
+        "duration": 1
+    },
+    "computing": {
+        "chars": ["1", "2", "3", "A", "B", "C"],
+        "color": "light_green",
+        "duration": 8
+    },
+    "writing": {
+        "chars": ["A", "B", "C", "!", "."],
+        "color": "grey",
+        "duration": 8
+    }
+}
