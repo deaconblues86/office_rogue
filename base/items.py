@@ -1,6 +1,7 @@
+from random import randint
 from base.enums import ObjType
 from constants import colors, game_objects
-from utils import object_funcs
+from base.thoughts import WorkRequest
 
 
 def attrFormatter(attrs, obj, override={}, base=False):
@@ -33,6 +34,66 @@ def attrFormatter(attrs, obj, override={}, base=False):
     return details
 
 
+class Action():
+    def __init__(self, name, chars, color, actor, target, duration, effects=[], produces=None, consumes=None):
+        self.name = name
+        self.chars = chars
+        self.color = color
+        self.actor = actor
+        self.target = target
+        self.duration = duration
+
+        self.effects = effects
+        self.produces = produces
+        self.consumes = consumes
+
+        # Sets inital state of actor & target (if not work request)
+        self.actor.occupied += duration
+        if isinstance(self.target, WorkRequest):
+            self.target.occupied_by = actor
+
+    def tick_action(self):
+        self.actor.occupied -= 1
+        if not self.actor.occupied:
+            self.resolve_action()
+
+    def resolve_action(self):
+        for effect in self.effects:
+            self.apply_effect(effect)
+
+        if isinstance(self.target, WorkRequest):
+            self.target.resolve_request
+        else:
+            self.target.occupied_by = None
+            self.target.eval_events()
+            self.actor.finished_action(self)
+
+    def apply_effect(self, effect):
+        if effect.get("actor_stat"):
+            app_target = self.actor
+            app_stat = effect.get("actor_stat")
+        else:
+            app_target = self.target
+            app_stat = effect.get("target_stat")
+
+        if effect.get("new_value"):
+            setattr(app_target, app_stat, effect.get("new_value"))
+        elif effect.get("modifier"):
+            mod = effect.get("modifier")
+            if mod < 0:
+                setattr(app_target, app_stat, max(getattr(app_target, app_stat, 0) + mod, 0))
+            else:
+                setattr(app_target, app_stat, min(getattr(app_target, app_stat, 0) + mod, 100))
+        else:
+            exec_vars = {"app_target": app_target, "randint": randint, "ret": 0}
+            exec(effect.get("exec"), exec_vars)
+            mod = exec_vars["ret"]
+            if mod < 0:
+                setattr(app_target, app_stat, max(getattr(app_target, app_stat, 0) + mod, 0))
+            else:
+                setattr(app_target, app_stat, min(getattr(app_target, app_stat, 0) + mod, 100))
+
+
 class BaseObject():
     def __init__(self, game, name, x, y, char, color, obj_type, blocks=False, durability=100, **kwargs):
         self.game = game
@@ -51,9 +112,12 @@ class BaseObject():
         self.durability = durability
         self.cleanliness = 100
         self.state = ""
+
         self.emits = kwargs.get("emits")
         self.on_create = kwargs.get("on_create")
         self.on_destroy = kwargs.get("on_destroy")
+        self.on_broken = kwargs.get("on_broken")
+        self.on_dirty = kwargs.get("on_dirty")
 
     def adjacent(self):
         """ Asks GameInstance 'What's Next to Me?'' """
@@ -66,33 +130,40 @@ class BaseObject():
     def destroy(self):
         self.game.delete_object(self)
 
+    def init_action(self, action, user):
+        if not action:
+            self._action()
+            return None
+
+        self.game.submit_action(self.action, user, self)
+
+    def _action(self):
+        self.broadcast(f"{self.name.capitalize()} has no use!", "red")
+
+    def eval_events(self):
+        if self.durability <= 0:
+            self.game.submit_event(self, self.on_broken)
+        if self.cleanliness <= 0:
+            self.game.submit_event(self, self.on_dirty)
+
     def broadcast(self, message, color="white"):
         """ Publishes call backs from objects to game """
         self.game.log_message(message, color)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
-        return attrFormatter(["durability", "state"], self, base=True)
+        return attrFormatter(["durability", "state", "occupied_by"], self, base=True)
 
 
 class Item(BaseObject):
-    def __init__(self, satisfies, use_func=None, owner=None, *args, **kwargs):
+    def __init__(self, satisfies, action=None, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
-        self.use_func_repr = use_func
+        self.action = action
         self.owner = owner
         self.holder = None
 
-        self.on_broken = kwargs.get("on_broken")
-        self.on_dirty = kwargs.get("on_dirty")
         self.on_drop = kwargs.get("on_drop")
-
-        # Get actual function from string repr
-        # If none is found, will use default private func
-        if self.use_func_repr:
-            self.use_func = getattr(object_funcs, self.use_func_repr, self._use_func)
-        else:
-            self.use_func = self._use_func
 
     def use(self, user):
         if self.owner and self.owner is not user:
@@ -101,14 +172,7 @@ class Item(BaseObject):
             self.broadcast(f"{self.name} is broken")
             user.broken_target(self)
         else:
-            wear, dirt = self.use_func(user)
-            self.durability -= wear
-            self.cleanliness -= dirt
-            self.eval_events()
-
-    def _use_func(self, target):
-        self.broadcast(f"{self.name.capitalize()} has no use!", "red")
-        return 0, 0
+            self.init_action(self.action, user)
 
     def move_to_inventory(self, holder):
         holder.inventory.append(self)
@@ -121,12 +185,6 @@ class Item(BaseObject):
         self.game.add_tile_content(self)
         self.holder = None
         self.game.submit_event(self, self.on_drop)
-
-    def eval_events(self):
-        if self.durability <= 0:
-            self.game.submit_event(self, self.on_broken)
-        if self.cleanliness <= 0:
-            self.game.submit_event(self, self.on_dirty)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
@@ -141,13 +199,15 @@ class Vendor(BaseObject):
     Vendor no longer loses durability like other items
     Instead stocks are drained
     '''
-    def __init__(self, satisfies, stock, owner=None, *args, **kwargs):
+    def __init__(self, satisfies, stock, action=None, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
-        self.owner = owner
         self.stock = stock
+        self.action = action
+        self.owner = owner
         self.inventory = []
         self.on_no_stock = kwargs.get("on_no_stock")
+
         self.restock_items()
 
     def restock_items(self):
@@ -175,6 +235,7 @@ class Vendor(BaseObject):
             desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
             for item in desired:
                 self.dispense(item, user)
+                self.init_action(self.action, user)
                 break
             else:
                 user.broken_target(self)

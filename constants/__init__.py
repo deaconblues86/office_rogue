@@ -71,6 +71,9 @@ with open("defs/jobs.json") as obj_file:
 with open("defs/requests.json") as req_file:
     work_requests = json.loads(req_file.read())
 
+with open("defs/actions.json") as obj_file:
+    actions = json.loads(obj_file.read())
+
 with open("defs/emissions.json") as emit_file:
     game_auras = json.loads(emit_file.read())
 

@@ -1,62 +1,129 @@
 {
     "cleaning": {
-        "chars": ["&", "$", "o" "*"],
+        "chars": ["&", "$", "o", "*"],
         "color": "white",
-        "duration": 4
+        "duration": 4,
+        "effects": [
+            {"target_stat": "cleanliness", "new_value": 100},
+            {"actor_stat": "work", "modifier": 50}
+        ]
+    },
+    "cleaning_up": {
+        "chars": ["&", "$", "o", "*"],
+        "color": "white",
+        "duration": 4,
+        "effects": [
+            {"actor_stat": "work", "modifier": 50}
+        ]
     },
     "repairing": {
         "chars": ["^", "}", "{", "<", ">"],
         "color": "grey",
-        "duration": 4
+        "duration": 4,
+        "effects":[
+            {"actor_stat": "work", "modifier": 50},
+            {"target_stat": "durability", "new_value": 100}
+        ]
     },
     "chatting": {
         "chars": ["!", "$", "#", "%"],
         "color": "yellow",
-        "duration": 4
+        "duration": 4,
+        "effects": [
+            {"actor_stat": "social", "modifier": 25}
+        ]
     },
     "surfing": {
         "chars": ["1", "0", "-", "|"],
         "color": "green",
-        "duration": 6
+        "duration": 6,
+        "effects": [
+            {"actor_stat": "mood", "modifier": 25},
+            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
+        ]
     },
     "pooing": {
         "chars": [":", "(", "~"],
         "color": "light_sepia",
-        "duration": 4
+        "duration": 4,
+        "effects": [
+            {"actor_stat": "bowels", "new_value": 100},
+            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
+            {"target_stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
+        ]
     },
     "peeing": {
         "chars": [".", ";"],
         "color": "light_yellow",
-        "duration": 2
+        "duration": 2,
+        "effects": [
+            {"actor_stat": "bladder", "new_value": 100},
+            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
+            {"target_stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
+        ]
     },
     "making_coffee": {
         "chars": ["o", ".", "p"],
         "color": "dark_sepia",
-        "duration": 2
+        "duration": 2,
+        "effects": [
+            {"actor_stat": "energy", "new_value": 100},
+            {"actor_stat": "thirst", "modifier": 25},
+            {"actor_stat": "bowels", "modifier": -10},
+            {"actor_stat": "bladder", "modifier": -10},
+            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
+        ]
+    },
+    "restocking": {
+        "chars": ["!", "^"],
+        "color": "light_orange",
+        "duration": 2,
+        "effects": [
+            {"actor_stat": "work", "modifier": 50}
+        ]
     },
     "vending": {
         "chars": ["$"],
         "color": "light_green",
-        "duration": 1
+        "duration": 1,
+        "produces": null,
+        "consumes": null
     },
     "drinking_water": {
         "chars": ["o", ".", "d"],
         "color": "light_blue",
-        "duration": 1 
+        "duration": 1,
+        "effects": [
+            {"actor_stat": "thirst", "modifier": 50},
+            {"actor_stat": "bladder", "modifier": -10},
+            {"target_stat": "durability", "modifier": 50}
+        ]
     },
     "snacking": {
         "chars": ["x", "*", "!"],
         "color": "orange",
-        "duration": 1
+        "duration": 1,
+        "effects": [
+            {"actor_stat": "hunger", "modifier": 50},
+            {"actor_stat": "bowels", "modifier": -10},
+            {"target_stat": "durability", "modifier": 25}
+        ]
     },
     "computing": {
         "chars": ["1", "2", "3", "A", "B", "C"],
         "color": "light_green",
-        "duration": 8
+        "duration": 8,
+        "effects": [
+            {"actor_stat": "work", "exec": "ret = (app_target.energy / app_target.max_energy) * 33"},
+            {"actor_stat": "energy", "exec": "ret = ((app_target.energy / app_target.max_energy) * 33) * -0.25"},
+            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
+       ]
     },
     "writing": {
         "chars": ["A", "B", "C", "!", "."],
         "color": "grey",
-        "duration": 8
+        "duration": 8,
+        "produces": null,
+        "consumes": null
     }
 }

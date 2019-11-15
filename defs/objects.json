@@ -5,7 +5,6 @@
         "color": "yellow",
         "blocks": true,
         "satisfies": [],
-        "use_func": null,
         "obj_type": "appliance",
         "on_no_stock": {
             "request": "Restock"
@@ -24,6 +23,7 @@
         "color": "yellow",
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
+        "action": "vending",
         "obj_type": "vendor",
         "stock": [
             {"name": "Water Bottle", "max_stock": 4},
@@ -42,7 +42,7 @@
         "color": "yellow",
         "satisfies": ["energy", "thirst"],
         "blocks": true,
-        "use_func": "coffee_func",
+        "action": "making_coffee",
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -54,7 +54,6 @@
         "color": "blue",
         "blocks": true,
         "satisfies": [],
-        "use_func": null,
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -70,7 +69,6 @@
         "color": "orange",
         "blocks": true,
         "satisfies": [],
-        "use_func": null,
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -86,7 +84,7 @@
         "color": "light_green",
         "satisfies": ["work"],
         "blocks": true,
-        "use_func": "terminal_func",
+        "action": "computing",
         "obj_type": "appliance",
         "on_broken": {
             "request": "Service"
@@ -98,7 +96,7 @@
         "color": "white",
         "blocks": true,
         "satisfies": ["bladder"],
-        "use_func": "urinal_func",
+        "action": "peeing",
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -114,7 +112,6 @@
         "color": "white",
         "blocks": true,
         "satisfies": [],
-        "use_func": null,
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -130,7 +127,7 @@
         "color": "white",
         "blocks": true,
         "satisfies": ["bladder", "bowels"],
-        "use_func": "toilet_func",
+        "action": "pooing",
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -184,7 +181,7 @@
         "char": "!",
         "color": "light_blue",
         "satisfies": ["thirst"],
-        "use_func": "water_func",
+        "action": "drinking_water",
         "obj_type": "item",
         "on_broken": {
             "become": "Trash"
@@ -195,7 +192,7 @@
         "char": "^",
         "color": "light_green",
         "satisfies": ["hunger"],
-        "use_func": "snack_func",
+        "action": "snacking",
         "obj_type": "item",
         "on_broken": {
             "become": "Trash"
@@ -206,7 +203,7 @@
         "char": "[",
         "color": "light_orange",
         "satisfies": ["mood"],
-        "use_func": "cellphone_func",
+        "action": "surfing",
         "obj_type": "item"
     },
     "Urine": {

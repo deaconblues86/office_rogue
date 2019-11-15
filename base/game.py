@@ -2,8 +2,9 @@ import random
 
 from tcod.event import EventDispatch
 from base.enums import ObjType
-from base.items import BaseObject, Item, Vendor
-from base.coworker import WorkRequest, Mob
+from base.items import BaseObject, Item, Vendor, Action
+from base.thoughts import WorkRequest
+from base.coworker import Mob
 from constants import (
     female_names,
     male_names,
@@ -11,6 +12,7 @@ from constants import (
     game_jobs,
     game_auras,
     work_requests,
+    actions
 )
 
 key_map = {
@@ -68,6 +70,7 @@ class GameInstance():
             ObjType.item: [],
             ObjType.mob: []
         }
+        self.actions = []
         self.emitters = []
         self.work_requests = []
 
@@ -82,6 +85,9 @@ class GameInstance():
         if not self.popup_open:
             self.turns += 1
             self.assign_requests()
+            for action in self.actions:
+                action.tick_action()
+
             for worker in self.world_objs[ObjType.mob]:
                 if worker is self.player:
                     if not self.player.fired:
@@ -189,13 +195,18 @@ class GameInstance():
 
         return obj
 
-    def transform_object(self, obj, new):
-        new = game_objects.get(new)
-        if new:
-            self.create_object(obj.x, obj.y, new, holder=obj.holder)
-            self.delete_object(obj, holder=obj.holder)
-        else:
-            print(f"New object not found: {new}")
+    def submit_action(self, action, actor, target):
+        action_obj = actions.get(action, None)
+        if not action_obj:
+            print(f"Action not found {action}")
+            return None
+        action_obj.update({"name": action, "actor": actor, "target": target})
+        action_obj = Action(**action_obj)
+        self.actions.append(action_obj)
+
+    def complete_action(self, job):
+        self.actions = [x for x in self.actions if x is not job]
+        del job
 
     def submit_event(self, obj, event):
         if not event:
@@ -208,26 +219,34 @@ class GameInstance():
         if event.get("emits"):
             self.log_emitter(obj, event["emits"])
 
-    def log_emitter(self, obj, thought):
-        # TODO: Implement emitted auras
-        # Auras passed as thoughts to workers when adjacent on emitter
-        # Need to handle auras on init but, more importantly, temporary
-        # state-based auras (i.e. on_dirty) - need to know when temps end
-        pass
-
     def log_request(self, obj, request):
         '''
         Logs unique requests (based on obj & request type) to be performed
         '''
         job_request = work_requests.get(request)
         if job_request:
-            job_request.update({"target": obj})
+            job_request.update({"game": self,"target": obj})
             if (job_request["name"], job_request["target"]) in ((x.name, x.target) for x in self.work_requests):
                 return None
 
             job = WorkRequest(**job_request)
             self.work_requests.append(job)
             print(f"{job.name} logged for {job.target.name}")
+
+    def transform_object(self, obj, new):
+        new = game_objects.get(new)
+        if new:
+            self.create_object(obj.x, obj.y, new, holder=obj.holder)
+            self.delete_object(obj, holder=obj.holder)
+        else:
+            print(f"New object not found: {new}")
+
+    def log_emitter(self, obj, thought):
+        # TODO: Implement emitted auras
+        # Auras passed as thoughts to workers when adjacent on emitter
+        # Need to handle auras on init but, more importantly, temporary
+        # state-based auras (i.e. on_dirty) - need to know when temps end
+        pass
 
     def log_message(self, *args, **kwargs):
         self.renderer.log_message(*args, **kwargs)

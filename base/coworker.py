@@ -1,120 +1,7 @@
 import math
-from base.items import BaseObject, Item, attrFormatter
-from utils import object_funcs
 from constants import game_objects, colors
-
-
-class WorkRequest():
-    def __init__(
-        self, name, job, target,
-        target_stat=None, target_func=None, modifier=None, new_value=None, occupied=0, reward=None
-    ):
-        self.name = name
-        self.job = job
-        self.target = target
-        self.target_stat = target_stat
-        self.target_func = target_func
-        self.modifier = modifier
-        self.new_value = new_value
-
-        self.occupied = occupied
-        self.reward = reward
-
-        self.assignee = None
-
-    def resolve_request(self):
-        if self.target_func:
-            req_method = getattr(self.target, self.target_func)
-            req_method()
-        elif self.target_stat and self.modifier:
-            if self.modifier < 0:
-                setattr(
-                    self.target,
-                    self.target_stat,
-                    max(getattr(self.target, self.target_stat) + self.modifier, 0)
-                )
-            else:
-                setattr(
-                    self.target,
-                    self.target_stat,
-                    min(
-                        getattr(self.target, self.target_stat) + self.modifier,
-                        getattr(self.target, f"max_{self.target_stat}")
-                    )
-                )
-        elif self.target_stat and self.new_value:
-            setattr(self.target, self.target_stat, self.new_value)
-
-        self.assignee.resolve_action(self.target, self.occupied)
-        self.collect_reward()
-
-    def collect_reward(self):
-        if self.reward["target_stat"]:
-            reward_stat = self.reward["target_stat"]
-            reward_mod = self.reward["modifier"]
-            setattr(
-                self.assignee,
-                reward_stat,
-                min(
-                        getattr(self.assignee, reward_stat) + reward_mod,
-                        getattr(self.assignee, f"max_{reward_stat}")
-                    )
-            )
-
-
-class Thought():
-    def __init__(self, name, description, duration, target_stat, modifier):
-        self.name = name
-        self.description = description
-        self.duration = duration
-        self.target_stat = target_stat
-        self.modifier = modifier
-
-    def apply_modifier(self, target):
-        attr = getattr(target, self.target_stat)
-        attr += self.modifier
-        setattr(target, self.target_stat, attr)
-
-
-class Memories():
-    def __init__(self, mob):
-        self.mob = mob
-        self.broken_items = []
-        self.work_tasks = []
-        self.thoughts = []
-        self.relationships = []
-        self.iters = 0
-
-    def tick_memories(self):
-        '''
-        Every 20 turns, remove oldest item found to be broken,
-        tick thought lifetimes, apply modifiers, and remove timed out thoughts
-        '''
-        self.iters += 1
-        if not self.iters % 20:
-            if self.broken_items:
-                self.broken_items.pop(0)
-            for thought in self.thoughts:
-                thought.apply_modifier(self.mob)
-                thought.duration -= 1
-            self.thoughts = [t for t in self.thoughts if t.duration <= 0]
-
-    def add_broken(self, obj):
-        '''
-        Try to pop already found broken obj from list if present
-        Add broken object to end of list
-        - pop done to "refresh" memory
-        '''
-        try:
-            i = self.broken_items.index(obj)
-            self.broken_items.pop(i)
-        except ValueError:
-            pass
-        finally:
-            self.broken_items.append(obj)
-
-    def finish_job(self, job):
-        self.work_tasks = [x for x in self.work_tasks if x is not job]
+from base.thoughts import Memories
+from base.items import BaseObject, Item, attrFormatter
 
 
 class Mob(BaseObject):
@@ -205,6 +92,11 @@ class Mob(BaseObject):
         self.game.complete_request(self.target_job)
         print(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}")
         self.target_job = None
+
+    def finished_action(self, action):
+        print(f"{self.name} Finished {action.name}")
+        self.target = None
+        self.game.complete_action(action)
 
     def broken_target(self, obj):
         ''' Marks target as broken in memory and clears target '''
@@ -307,13 +199,8 @@ class Mob(BaseObject):
           - Processes Special events as certain stats tank
         """
         # If not preoccupied, check needs and do stuff
-        self.occupied -= 1
-        if not self.occupied and self.occupying:
-            self.occupying.occupied_by = None
-            self.occupying = None
-
-        self.memories.tick_memories()
         if not self.game.turns % 4:
+            self.memories.tick_memories()
             self.mood_drain = 0
             for need in self.needs:
                 # Mood is ticked last - dependent on others
@@ -434,32 +321,16 @@ class Mob(BaseObject):
         # Will now use target object/resolve request
         else:
             if self.target_job:
-                self.target_job.resolve_request()
-                self.remove_task()
+                self.target_job.init_request()
             else:
                 # Assumes one usable object per tile
                 appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
                 if appliances:
                     self.use_item(appliances[0])
 
-    def resolve_action(target, occupied=0):
-        # TODO: This should handle all this occupied_by/occupying/occupied business stuff
-        # Furthermore, needs to differentiate between straight item usage & work requests
-        # (which is really what kicked this off)
-
-        # Maybe just replace with a class that handles both the occupier and occupiee
-        # This could then be used to handle the little render flurishes you hope to add...
-        # (bubbles for cleaning, emotes for speaking, etc)
-        # This would still have to handle both items and requests indifferently, which could get muddled from a defs
-        # point of view (since they should be stored in JSON format)
-        pass
-
     def use_item(self, item):
         ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
         item.use(self)
-        item.occupied_by = self
-        self.occupying = item
-        self.target = None
 
     def pickup_item(self, item):
         item.move_to_inventory(self)
@@ -492,7 +363,7 @@ class Mob(BaseObject):
         """ Dumps pertinent object attributes for user to view """
         details = super().dump()
         attrs = list(self.needs)
-        attrs += ["target", "satisfying", "job"]
+        attrs += ["target", "satisfying", "job", "occupied"]
         inv = [x.name for x in self.inventory]
         broken = [x.name for x in self.memories.broken_items]
         tasks = [f"{x.name}: {x.target.name}" for x in self.get_tasks()]
