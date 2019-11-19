@@ -207,6 +207,7 @@ class GameInstance():
 
     def complete_action(self, action):
         self.actions = [x for x in self.actions if x is not action]
+        del self.renderer.action_cache[action]
         del action
 
     def submit_event(self, obj, event):

@@ -102,16 +102,19 @@ class Renderer():
 
     def render_actions(self):
         for action in self.game.actions:
+            if not self.action_cache.get(action):
+                self.action_cache[action] = []
+
             char = action.chars[randint(0, len(action.chars)-1)]
             adjacent = [(t.x, t.y) for t in self.game.get_adjacent(action.actor)]
             pos = adjacent[randint(0, len(adjacent) - 1)]
             args = {"x": pos[0], "y": pos[1], "string": char, "fg": colors[action.color], "bg": colors["black"]}
-            if self.action_cache.get(action):
-                self.root_console.print(**self.action_cache.get(action))
-                del self.action_cache[action]
+
+            for cache in self.action_cache[action]:
+                self.root_console.print(**cache)
 
             self.root_console.print(**args)
-            self.action_cache[action] = args
+            self.action_cache[action].append(args)
 
     def render_bars(self):
         for i, stat in enumerate(STATS):

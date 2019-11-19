@@ -234,6 +234,7 @@ class Vendor(BaseObject):
         - AI will get first item that satisfies need. If none exist, will be marked as broken
         """
         # Render Menu if player
+        self.init_actions(self.actions, user)
         if user is self.game.player:
             self.game.init_popup(self.name.capitalize(), options=self.inventory, popup_func=self.dispense)
         else:
@@ -242,7 +243,6 @@ class Vendor(BaseObject):
             desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
             for item in desired:
                 self.dispense(item, user)
-                self.init_actions(self.actions, user)
                 break
             else:
                 user.broken_target(self)
