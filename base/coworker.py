@@ -88,9 +88,9 @@ class Mob(BaseObject):
         self.memories.work_tasks.append(job)
 
     def remove_task(self):
+        print(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}")
         self.memories.finish_job(self.target_job)
         self.game.complete_request(self.target_job)
-        print(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}")
         self.target_job = None
 
     def finished_action(self, action):
@@ -123,10 +123,6 @@ class Mob(BaseObject):
                 print(f"{target.name}: {target.x},{target.y} occupied by {target.occupied_by.name}")
                 continue
 
-            # If target has been held but is bad, skip it
-            if target is self.target:
-                continue
-
             # If target is known to be broken, skip it
             if target in self.memories.broken_items:
                 continue
@@ -143,12 +139,13 @@ class Mob(BaseObject):
     def calculate_target_path(self):
         """
         Asks GameInstance for path to target. If target now blocked, nothing will be returned.
-        If its a bum target, keep for now, but know to exclude on next pass
+        If its a bum target, add to memories as broken for now
         """
         self.path = self.game.find_path(self, self.target)
         if not self.path:
             self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
-            self.state = "bum_target"
+            self.broken_target(self.target)
+            self.target = None
 
     def check_needs(self):
         """
@@ -157,10 +154,10 @@ class Mob(BaseObject):
         - Inventory will be evaluated first to see if they have something for it
         - If looking for work and a task has been assiged, that will be pursued.  Otherwise, the closest
           unoccupied thing that satisfies will be picked and a path returned
-        - If a bad target was previously acquired (bum_target) that'll be dropped from evaluation
+        - If a bad target was previously acquired (considered broken) that'll be dropped from evaluation
           - bad targets: Unable to path
         """
-        if not self.target or self.state == "bum_target":
+        if not self.target:
             lowest_status = 1
             for need in self.needs:
                 if need == "social":
@@ -218,10 +215,10 @@ class Mob(BaseObject):
             # Draining mood based on unfufilled needs
             self.mood += self.mood_drain
             if self.work <= 0:
-                self.mob_fired(self)
+                self.mob_fired()
 
             if self.mood <= 0:
-                self.mob_quits(self)
+                self.mob_quits()
 
             if self.bladder <= 0:
                 urine = game_objects["Urine"]
@@ -321,7 +318,7 @@ class Mob(BaseObject):
         # Will now use target object/resolve request
         else:
             if self.target_job:
-                self.target_job.init_request()
+                self.target_job.init_request(self)
             else:
                 # Assumes one usable object per tile
                 appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]

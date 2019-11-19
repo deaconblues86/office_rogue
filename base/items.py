@@ -48,7 +48,13 @@ class Action():
         self.consumes = consumes
 
         # Sets inital state of actor & target (if not work request)
+        # TODO: Currently allowing for multitasking.  Each Action should pile on to the user occupied attr
+        # (e.g. 4 + 2).  Though, they're all ticked essentially simultaneously, only once they're nolonger occupied
+        # will the actor resolve its actions
+        # May want to keep like this since most things limited by proximity, but for some things could add
+        # a blocking status.  Or maybe blocking not necessary since time stacks as it does prior to resolution
         self.actor.occupied += duration
+        print(self.actor.name, self.actor.occupied)
         if isinstance(self.target, WorkRequest):
             self.target.occupied_by = actor
 
@@ -62,7 +68,8 @@ class Action():
             self.apply_effect(effect)
 
         if isinstance(self.target, WorkRequest):
-            self.target.resolve_request
+            self.target.resolve_request()
+            self.actor.finished_action(self)
         else:
             self.target.occupied_by = None
             self.target.eval_events()
@@ -81,17 +88,17 @@ class Action():
         elif effect.get("modifier"):
             mod = effect.get("modifier")
             if mod < 0:
-                setattr(app_target, app_stat, max(getattr(app_target, app_stat, 0) + mod, 0))
+                setattr(app_target, app_stat, int(max(getattr(app_target, app_stat, 0) + mod, 0)))
             else:
-                setattr(app_target, app_stat, min(getattr(app_target, app_stat, 0) + mod, 100))
+                setattr(app_target, app_stat, int(min(getattr(app_target, app_stat, 0) + mod, 100)))
         else:
             exec_vars = {"app_target": app_target, "randint": randint, "ret": 0}
             exec(effect.get("exec"), exec_vars)
             mod = exec_vars["ret"]
             if mod < 0:
-                setattr(app_target, app_stat, max(getattr(app_target, app_stat, 0) + mod, 0))
+                setattr(app_target, app_stat, int(max(getattr(app_target, app_stat, 0) + mod, 0)))
             else:
-                setattr(app_target, app_stat, min(getattr(app_target, app_stat, 0) + mod, 100))
+                setattr(app_target, app_stat, int(min(getattr(app_target, app_stat, 0) + mod, 100)))
 
 
 class BaseObject():
@@ -130,12 +137,12 @@ class BaseObject():
     def destroy(self):
         self.game.delete_object(self)
 
-    def init_action(self, action, user):
-        if not action:
+    def init_actions(self, actions, user):
+        if not actions:
             self._action()
             return None
 
-        self.game.submit_action(self.action, user, self)
+        self.game.submit_actions(self.actions, user, self)
 
     def _action(self):
         self.broadcast(f"{self.name.capitalize()} has no use!", "red")
@@ -156,10 +163,10 @@ class BaseObject():
 
 
 class Item(BaseObject):
-    def __init__(self, satisfies, action=None, owner=None, *args, **kwargs):
+    def __init__(self, satisfies, actions=[], owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
-        self.action = action
+        self.actions = actions
         self.owner = owner
         self.holder = None
 
@@ -172,7 +179,7 @@ class Item(BaseObject):
             self.broadcast(f"{self.name} is broken")
             user.broken_target(self)
         else:
-            self.init_action(self.action, user)
+            self.init_actions(self.actions, user)
 
     def move_to_inventory(self, holder):
         holder.inventory.append(self)
@@ -199,11 +206,11 @@ class Vendor(BaseObject):
     Vendor no longer loses durability like other items
     Instead stocks are drained
     '''
-    def __init__(self, satisfies, stock, action=None, owner=None, *args, **kwargs):
+    def __init__(self, satisfies, stock, actions=[], owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
         self.stock = stock
-        self.action = action
+        self.actions = actions
         self.owner = owner
         self.inventory = []
         self.on_no_stock = kwargs.get("on_no_stock")
@@ -235,7 +242,7 @@ class Vendor(BaseObject):
             desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
             for item in desired:
                 self.dispense(item, user)
-                self.init_action(self.action, user)
+                self.init_actions(self.actions, user)
                 break
             else:
                 user.broken_target(self)

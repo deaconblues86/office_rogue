@@ -2,28 +2,28 @@
     "Repair": {
         "name": "Repair",
         "job": "maintenance",
-        "action": "repairing"
+        "actions": ["repairing"]
     },
     "Restock": {
         "name": "Restock",
         "job": "maintenance",
-        "action": "restocking",
+        "actions": ["restocking"],
         "target_func": "restock_items"
     },
     "Service": {
         "name": "Service",
         "job": "it",
-        "action": "repairing"
+        "actions": ["repairing"]
     },
     "Clean Up": {
         "name": "Clean Up",
         "job": "housekeeping",
-        "action": "cleaning",
+        "actions": ["cleaning"],
         "target_func": "destroy"
     },
     "Clean": {
         "name": "Clean",
         "job": "housekeeping",
-        "action": "cleaning"
+        "actions": ["cleaning"]
     }
 }

@@ -1,16 +1,16 @@
 class WorkRequest():
-    def __init__(self, game, name, job, target, action, target_func=None):
+    def __init__(self, game, name, job, target, actions, target_func=None):
         self.game = game
         self.name = name
         self.job = job
         self.target = target
-        self.action = action
+        self.actions = actions
         self.target_func = target_func
 
         self.assignee = None
 
     def init_request(self, user):
-        self.game.submit_action(self.action, user, self)
+        self.game.submit_actions(self.actions, user, self)
 
     def resolve_request(self):
         if self.target_func:

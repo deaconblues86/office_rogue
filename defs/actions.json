@@ -96,7 +96,7 @@
         "effects": [
             {"actor_stat": "thirst", "modifier": 50},
             {"actor_stat": "bladder", "modifier": -10},
-            {"target_stat": "durability", "modifier": 50}
+            {"target_stat": "durability", "modifier": -50}
         ]
     },
     "snacking": {
@@ -106,7 +106,7 @@
         "effects": [
             {"actor_stat": "hunger", "modifier": 50},
             {"actor_stat": "bowels", "modifier": -10},
-            {"target_stat": "durability", "modifier": 25}
+            {"target_stat": "durability", "modifier": -25}
         ]
     },
     "computing": {

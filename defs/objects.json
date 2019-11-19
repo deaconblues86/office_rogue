@@ -23,7 +23,7 @@
         "color": "yellow",
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
-        "action": "vending",
+        "actions": ["vending"],
         "obj_type": "vendor",
         "stock": [
             {"name": "Water Bottle", "max_stock": 4},
@@ -42,7 +42,7 @@
         "color": "yellow",
         "satisfies": ["energy", "thirst"],
         "blocks": true,
-        "action": "making_coffee",
+        "actions": ["making_coffee"],
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -84,7 +84,7 @@
         "color": "light_green",
         "satisfies": ["work"],
         "blocks": true,
-        "action": "computing",
+        "actions": ["computing"],
         "obj_type": "appliance",
         "on_broken": {
             "request": "Service"
@@ -96,7 +96,7 @@
         "color": "white",
         "blocks": true,
         "satisfies": ["bladder"],
-        "action": "peeing",
+        "actions": ["peeing"],
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -127,7 +127,7 @@
         "color": "white",
         "blocks": true,
         "satisfies": ["bladder", "bowels"],
-        "action": "pooing",
+        "actions": ["pooing", "peeing"],
         "obj_type": "appliance",
         "on_broken": {
             "request": "Repair"
@@ -181,7 +181,7 @@
         "char": "!",
         "color": "light_blue",
         "satisfies": ["thirst"],
-        "action": "drinking_water",
+        "actions": ["drinking_water"],
         "obj_type": "item",
         "on_broken": {
             "become": "Trash"
@@ -192,7 +192,7 @@
         "char": "^",
         "color": "light_green",
         "satisfies": ["hunger"],
-        "action": "snacking",
+        "actions": ["snacking"],
         "obj_type": "item",
         "on_broken": {
             "become": "Trash"
@@ -203,7 +203,7 @@
         "char": "[",
         "color": "light_orange",
         "satisfies": ["mood"],
-        "action": "surfing",
+        "actions": ["surfing"],
         "obj_type": "item"
     },
     "Urine": {

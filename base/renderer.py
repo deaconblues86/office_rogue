@@ -1,4 +1,5 @@
 import textwrap
+from random import randint
 from tcod.console import Console
 from constants import (
     screen_width,
@@ -86,6 +87,8 @@ class Renderer():
         # Pull bg color
         self.bg_color = tuple(colors["black"])
 
+        self.action_cache = {}
+
     def render_all(self):
         for obj_type in self.game.world_objs:
             for obj in self.game.world_objs[obj_type]:
@@ -96,6 +99,19 @@ class Renderer():
 
     def render(self, obj):
         self.root_console.print(x=obj.x, y=obj.y, string=obj.char, fg=obj.color, bg=colors["black"])
+
+    def render_actions(self):
+        for action in self.game.actions:
+            char = action.chars[randint(0, len(action.chars)-1)]
+            adjacent = [(t.x, t.y) for t in self.game.get_adjacent(action.actor)]
+            pos = adjacent[randint(0, len(adjacent) - 1)]
+            args = {"x": pos[0], "y": pos[1], "string": char, "fg": colors[action.color], "bg": colors["black"]}
+            if self.action_cache.get(action):
+                self.root_console.print(**self.action_cache.get(action))
+                del self.action_cache[action]
+
+            self.root_console.print(**args)
+            self.action_cache[action] = args
 
     def render_bars(self):
         for i, stat in enumerate(STATS):

@@ -29,6 +29,8 @@ with tcod.console_init_root(
     while True:
         iters += 1
         renderer.render_all()
+        renderer.render_actions()
+
         renderer.render_bars()
         renderer.render_messages()
         renderer.render_tasks()

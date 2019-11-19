@@ -12,7 +12,7 @@ from constants import (
     game_jobs,
     game_auras,
     work_requests,
-    actions
+    game_actions
 )
 
 key_map = {
@@ -195,18 +195,19 @@ class GameInstance():
 
         return obj
 
-    def submit_action(self, action, actor, target):
-        action_obj = actions.get(action, None)
-        if not action_obj:
-            print(f"Action not found {action}")
-            return None
-        action_obj.update({"name": action, "actor": actor, "target": target})
-        action_obj = Action(**action_obj)
-        self.actions.append(action_obj)
+    def submit_actions(self, actions, actor, target):
+        for action in actions:
+            action_obj = game_actions.get(action, None)
+            if not action_obj:
+                print(f"Action not found {action}")
+                return None
+            action_obj.update({"name": action, "actor": actor, "target": target})
+            action_obj = Action(**action_obj)
+            self.actions.append(action_obj)
 
-    def complete_action(self, job):
-        self.actions = [x for x in self.actions if x is not job]
-        del job
+    def complete_action(self, action):
+        self.actions = [x for x in self.actions if x is not action]
+        del action
 
     def submit_event(self, obj, event):
         if not event:
@@ -225,7 +226,7 @@ class GameInstance():
         '''
         job_request = work_requests.get(request)
         if job_request:
-            job_request.update({"game": self,"target": obj})
+            job_request.update({"game": self, "target": obj})
             if (job_request["name"], job_request["target"]) in ((x.name, x.target) for x in self.work_requests):
                 return None
 
