@@ -103,7 +103,6 @@ class GameInstance():
             )
             for c in candidates:
                 c.add_task(job)
-                print(f"{c.name} assigned to {job.name}: {job.target.name}")
                 break
             else:
                 print(f"No candidate found for {job.name} of {job.target.name}")
@@ -233,7 +232,6 @@ class GameInstance():
 
             job = WorkRequest(**job_request)
             self.work_requests.append(job)
-            print(f"{job.name} logged for {job.target.name}")
 
     def transform_object(self, obj, new):
         new = game_objects.get(new)

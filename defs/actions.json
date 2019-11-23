@@ -43,7 +43,7 @@
         ]
     },
     "pooing": {
-        "chars": [":", "(", "~"],
+        "chars": ["P", "O", "~"],
         "color": "light_sepia",
         "duration": 4,
         "effects": [
@@ -53,7 +53,7 @@
         ]
     },
     "peeing": {
-        "chars": [".", ";"],
+        "chars": ["*", ":"],
         "color": "light_yellow",
         "duration": 2,
         "effects": [

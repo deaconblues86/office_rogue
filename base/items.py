@@ -54,7 +54,6 @@ class Action():
         # May want to keep like this since most things limited by proximity, but for some things could add
         # a blocking status.  Or maybe blocking not necessary since time stacks as it does prior to resolution
         self.actor.occupied += duration
-        print(self.actor.name, self.actor.occupied)
         if isinstance(self.target, WorkRequest):
             self.target.occupied_by = actor
 

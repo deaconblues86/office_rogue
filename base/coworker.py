@@ -88,15 +88,15 @@ class Mob(BaseObject):
         self.memories.work_tasks.append(job)
 
     def remove_task(self):
-        print(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}")
+        self.broadcast(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}", "yellow")
         self.memories.finish_job(self.target_job)
         self.game.complete_request(self.target_job)
         self.target_job = None
 
     def finished_action(self, action):
-        print(f"{self.name} Finished {action.name}")
-        self.target = None
+        self.broadcast(f"{self.name} Finished {action.name}", action.color)
         self.game.complete_action(action)
+        self.target = None
 
     def broken_target(self, obj):
         ''' Marks target as broken in memory and clears target '''
@@ -113,11 +113,6 @@ class Mob(BaseObject):
         closest = None
         targets = filter(lambda x: not x.owner or x.owner is self, targets)
         for target in targets:
-            # # If no empty tiles, occupado
-            # empty_tiles = list(filter(lambda x: not x.blocked, self.game.get_adjacent(target)))
-            # if not empty_tiles:
-            #     continue
-
             # If target currently in use, skip it
             if target.occupied_by:
                 print(f"{target.name}: {target.x},{target.y} occupied by {target.occupied_by.name}")
@@ -143,7 +138,7 @@ class Mob(BaseObject):
         """
         self.path = self.game.find_path(self, self.target)
         if not self.path:
-            self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
+            print(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
             self.broken_target(self.target)
             self.target = None
 
@@ -182,7 +177,7 @@ class Mob(BaseObject):
                 self.target = self.determine_closest(targets)
 
             if not self.target:
-                self.broadcast(f"{self.name} can't satisfy {self.satisfying}")
+                print(f"{self.name} can't satisfy {self.satisfying}")
             else:
                 self.state = f"satisfying {self.satisfying}"
                 self.calculate_target_path()
@@ -196,7 +191,7 @@ class Mob(BaseObject):
           - Processes Special events as certain stats tank
         """
         # If not preoccupied, check needs and do stuff
-        if not self.game.turns % 4:
+        if not self.game.turns % 6:
             self.memories.tick_memories()
             self.mood_drain = 0
             for need in self.needs:
@@ -279,16 +274,16 @@ class Mob(BaseObject):
             if len(blockers) == 1 and isinstance(blockers[0], Mob):
                 coworker = blockers[0]
                 if coworker.path and coworker.path[0] == (self.x, self.y):
-                    self.broadcast(f"{self.name} swapped with {coworker.name}...")
+                    print(f"{self.name} swapped with {coworker.name}...")
                     coworker.move(self.game.get_tile(*coworker.path[0]), swapping=True)
                     self.move(next_tile, swapping=True)
 
             self.waiting += 1
             if self.waiting == 4:
-                self.broadcast(f"{self.name} is recalcing...")
+                print(f"{self.name} is recalcing...")
                 self.calculate_target_path()
             else:
-                self.broadcast(f"{self.name} is waiting...")
+                print(f"{self.name} is waiting...")
 
     def move(self, dest_tile, swapping=False, arrived=False):
         """
