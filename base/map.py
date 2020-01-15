@@ -1,5 +1,8 @@
-# Class defining room tiles
 class Tile():
+    """
+    Class defining game tiles
+     - Tiles control their contents and blocked/blocked sight status
+    """
     def __init__(self, x, y, ttype=None):
         self.x = x
         self.y = y
@@ -36,11 +39,11 @@ class Tile():
 
 
 class Rect():
-    '''
+    """
     Class defining rectangular room
      - (x1, y1): upper left corner
      - (x2, y2): lower right corner
-    '''
+    """
     def __init__(self, x, y, w, h):
         self.x1 = x
         self.y1 = y

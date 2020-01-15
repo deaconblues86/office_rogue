@@ -5,6 +5,10 @@ from base.items import BaseObject, Item, attrFormatter
 
 
 class Mob(BaseObject):
+    """
+    Class to handle player/NPC status and actions
+     - includes ticking needs, managing AI decisions
+    """
     max_inventory = 4
     needs = ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
 
@@ -73,7 +77,7 @@ class Mob(BaseObject):
 
     @occupied.setter
     def occupied(self, value):
-        """ occupied floors at zero.  Increased by actions and ticks down once with needs check """
+        # Occupied floors at zero.  Increased by performing actions and ticks down once with needs check
         self._occupied = max(value, 0)
         if self._occupied:
             self.char = '?'
@@ -81,25 +85,30 @@ class Mob(BaseObject):
             self.char = '@'
 
     def get_tasks(self):
+        # Returns current tasks from Memories
         return self.memories.work_tasks
 
     def add_task(self, job):
+        # Adds job to Memories.  Called by GameInstance when looking for candidates for WorkRequests
         job.assignee = self
         self.memories.work_tasks.append(job)
 
     def remove_task(self):
+        # Removes job from Memories, notifies GameInstance, and resets target_job.  Called by WorkRequest
+        # when resolving request.
         self.broadcast(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}", "yellow")
         self.memories.finish_job(self.target_job)
         self.game.complete_request(self.target_job)
         self.target_job = None
 
     def finished_action(self, action):
+        # Notifies GameInstance that action was completed and resets target.  Called by Action object
         self.broadcast(f"{self.name} Finished {action.name}", action.color)
         self.game.complete_action(action)
         self.target = None
 
     def broken_target(self, obj):
-        ''' Marks target as broken in memory and clears target '''
+        # Marks target as broken in memory and clears target
         self.memories.add_broken(obj)
         self.target = None
 
@@ -294,14 +303,12 @@ class Mob(BaseObject):
           positions if they both want to be in each others' spots
         - arrived: When True, coworker will use target/resolve job.  Needed for when target does not block
         """
-        # Standard Move action
+        # Standard Move action.  GameInstance will be notified
         if (not dest_tile.blocked or swapping) and not arrived:
             self.game.remove_tile_content(self)
-            self.game.update_pathmap(self.x, self.y)
             self.x = dest_tile.x
             self.y = dest_tile.y
             self.game.add_tile_content(self)
-            self.game.update_pathmap(self.x, self.y)
 
             # Wrapped pop in a try as player won't have a path
             try:

@@ -121,23 +121,8 @@ class GameInstance():
         return satisfies
 
     def find_path(self, seeker, target):
-        """
-        Pathing to first empty adjacent tile of target. If none exist, None will be turned and the
-        Coworker can try again next time around.
-        """
-        empty_tiles = list(filter(lambda x: not x.blocked, self.get_adjacent(target)))
-        if not empty_tiles:
-            return None
-
-        path = self.game_map.path_map.get_path(seeker.x, seeker.y, empty_tiles[0].x, empty_tiles[0].y)
-        return path
-
-    def update_pathmap(self, x, y):
-        # Flips pathmap flags
-        if self.game_map.path_map.cost[x, y]:
-            self.game_map.path_map.cost[x, y] = 0
-        else:
-            self.game_map.path_map.cost[x, y] = 1
+        # Routes path requests of Workers to MapGenerator
+        return self.game_map.find_path(seeker, target)
 
     def player_move_or_use(self, mod_x, mod_y):
         if self.player.occupied:
@@ -156,10 +141,12 @@ class GameInstance():
         return self.game_map.get_adjacent_tiles(obj)
 
     def add_tile_content(self, obj):
+        # Communicates tile content change to MapGenerator which then updates path_map
         self.game_map.place_object(obj)
         self.world_objs[obj.type].append(obj)
 
     def remove_tile_content(self, obj):
+        # Communicates tile content change to MapGenerator which then updates path_map
         self.game_map.remove_object(obj)
         self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 

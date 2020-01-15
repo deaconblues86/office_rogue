@@ -54,7 +54,7 @@ class Action():
         # May want to keep like this since most things limited by proximity, but for some things could add
         # a blocking status.  Or maybe blocking not necessary since time stacks as it does prior to resolution
         self.actor.occupied += duration
-        if isinstance(self.target, WorkRequest):
+        if not isinstance(self.target, WorkRequest):
             self.target.occupied_by = actor
 
     def tick_action(self):
@@ -126,7 +126,7 @@ class BaseObject():
         self.on_dirty = kwargs.get("on_dirty")
 
     def adjacent(self):
-        """ Asks GameInstance 'What's Next to Me?'' """
+        # Asks GameInstance 'What's Next to Me?
         return self.game.get_adjacent(self)
 
     @property
@@ -176,6 +176,9 @@ class Item(BaseObject):
             self.broadcast(f"{self.name} doesn't belong to {user.name}")
         elif self.broken:
             self.broadcast(f"{self.name} is broken")
+            user.broken_target(self)
+        elif self.occupied_by:
+            print(f"{self.name}: {self.x},{self.y} occupied by {self.occupied_by.name}")
             user.broken_target(self)
         else:
             self.init_actions(self.actions, user)

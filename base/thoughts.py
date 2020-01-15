@@ -43,10 +43,10 @@ class Memories():
         self.iters = 0
 
     def tick_memories(self):
-        '''
+        """
         Every 20 turns, remove oldest item found to be broken,
         tick thought lifetimes, apply modifiers, and remove timed out thoughts
-        '''
+        """
         self.iters += 1
         if not self.iters % 20:
             if self.broken_items:
@@ -57,11 +57,11 @@ class Memories():
             self.thoughts = [t for t in self.thoughts if t.duration <= 0]
 
     def add_broken(self, obj):
-        '''
+        """
         Try to pop already found broken obj from list if present
         Add broken object to end of list
         - pop done to "refresh" memory
-        '''
+        """
         try:
             i = self.broken_items.index(obj)
             self.broken_items.pop(i)

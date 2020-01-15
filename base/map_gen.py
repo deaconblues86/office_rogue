@@ -50,6 +50,15 @@ def room_flip(rows, flip):
 
 
 class MapGenerator():
+    """
+    Class Handling Map Generation and currently
+    serves as the middleman between the GameInstance and the
+    tiles themselves.
+     - TODO: Besides housing the path_map, which could be moved, doesn't really
+       make sense to have this class in use once the map's been generated
+     - TODO: May make sense if multiple maps need to exist simultaneously.  Each
+       could maintain their own tiles and reduce churn over expanding list of tiles
+    """
     def __init__(self, game):
         self.game = game
         self.game.game_map = self
@@ -59,10 +68,22 @@ class MapGenerator():
         self.interior = interiorRect
 
     def place_object(self, obj):
+        # Places object in tile and updates path_map
         self.tiles[obj.x][obj.y].add_content(obj)
+        if self.path_map:
+            if self.tiles[obj.x][obj.y].blocked:
+                self.path_map.cost[obj.x, obj.y] = 0
+            else:
+                self.path_map.cost[obj.x, obj.y] = 1
 
     def remove_object(self, obj):
+        # Removes object in tile and updates path_map
         self.tiles[obj.x][obj.y].remove_content(obj)
+        if self.path_map:
+            if self.tiles[obj.x][obj.y].blocked:
+                self.path_map.cost[obj.x, obj.y] = 0
+            else:
+                self.path_map.cost[obj.x, obj.y] = 1
 
     def get_tile(self, x, y):
         return self.tiles[x][y]
@@ -73,6 +94,18 @@ class MapGenerator():
     def get_adjacent_tiles(self, obj):
         adj_coords = self.tiles[obj.x][obj.y].adjacent()
         return [self.tiles[x[0]][x[1]] for x in adj_coords]
+
+    def find_path(self, seeker, target):
+        """
+        Pathing to first empty adjacent tile of target. If none exist, None will be turned and the
+        Coworker can try again next time around.
+        """
+        empty_tiles = list(filter(lambda x: not x.blocked, self.get_adjacent_tiles(target)))
+        if not empty_tiles:
+            return None
+
+        path = self.path_map.get_path(seeker.x, seeker.y, empty_tiles[0].x, empty_tiles[0].y)
+        return path
 
     def generate_map(self):
         self.tiles = [
