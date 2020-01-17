@@ -94,6 +94,9 @@ class Renderer():
             for obj in self.game.world_objs[obj_type]:
                 self.render(obj)
 
+        if self.game.cursor:
+            self.render(self.game.cursor)
+
         if self.game.popup_open:
             self.render_popup()
 
@@ -165,10 +168,11 @@ class Renderer():
     def render_popup(self):
         self.popup.draw_popup(self.root_console)
 
-    def init_popup(self, title, msg=None, options=[], popup_func=None):
+    def init_popup(self, title, msg=None, options=[], popup_func=None, func_target=None):
         self.game.popup_open = True
         self.game.popup_options = options
         self.game.popup_func = popup_func
+        self.game.func_target = func_target
         self.popup.load_options(title, msg, [x.name for x in self.game.popup_options])
 
     def render_tasks(self):

@@ -12,7 +12,8 @@ from constants import (
     game_jobs,
     game_auras,
     work_requests,
-    game_actions
+    game_actions,
+    colors
 )
 
 key_map = {
@@ -61,6 +62,34 @@ class Dispatcher(EventDispatch):
         pass
 
 
+class Cursor():
+    def __init__(self, game, x, y):
+        self.game = game
+        self.char = "X"
+        self.color = colors["white"]
+        self.x = x
+        self.y = y
+
+        self.fetch_tile_contents()
+        self.display_available_options()
+
+    def fetch_tile_contents(self):
+        self.highlighted = self.game.get_tile(self.x, self.y).contents
+
+    def display_available_options(self):
+        self.game.init_popup("Tile Contents", options=self.highlighted, popup_func=self.request_selected_options)
+
+    def request_selected_options(self, selected_obj):
+        options = getattr(self.game.player, "interactions", [])
+        self.game.init_popup(f"{selected_obj.name} options", options=options, func_target=selected_obj)
+
+    def move(self, mod_x, mod_y):
+        self.x += mod_x
+        self.y += mod_y
+        self.fetch_tile_contents()
+        self.display_available_options()
+
+
 class GameInstance():
     def __init__(self):
         self.world_objs = {
@@ -79,7 +108,10 @@ class GameInstance():
 
         self.popup_open = False
         self.popup_func = None
+        self.func_target = None
         self.popup_options = []
+
+        self.cursor = None
 
     def run_coworkers(self):
         if not self.popup_open:
@@ -283,13 +315,55 @@ class GameInstance():
         if self.popup_open:
             if key_map.get(key) == "exit" or key == ord("x"):
                 self.popup_open = False
+                if self.cursor:
+                    self.cursor = None
                 return False
+
+            if self.cursor:
+                if key_map.get(key) in ("up", "num8"):
+                    self.cursor.move(0, -1)
+
+                elif key_map.get(key) == "num7":
+                    self.cursor.move(-1, -1)
+
+                elif key_map.get(key) == "num9":
+                    self.cursor.move(1, -1)
+
+                elif key_map.get(key) == "num1":
+                    self.cursor.move(-1, 1)
+
+                elif key_map.get(key) in ("down", "num2"):
+                    self.cursor.move(0, 1)
+
+                elif key_map.get(key) == "num3":
+                    self.cursor.move(1, 1)
+
+                elif key_map.get(key) in ("right", "num6"):
+                    self.cursor.move(1, 0)
+
+                elif key_map.get(key) in ("left", "num4"):
+                    self.cursor.move(-1, 0)
 
             try:
                 opt_index = key - ord('a')
                 choice = self.popup_options[opt_index]
-                self.popup_func(choice)
+
+                if self.cursor and not self.func_target:
+                    self.cursor.request_selected_options(choice)
+                    return
+
+                # Handles cursor based interations
+                # cursor provides target to GameInstance
+                elif self.cursor and self.func_target:
+                    choice.interaction(self.func_target)
+
+                # Handles standard callback functions provided by object that
+                # called the popup
+                else:
+                    self.popup_func(choice)
+
                 self.popup_open = False
+                self.cursor = None
             except IndexError:
                 pass
 
@@ -327,6 +401,9 @@ class GameInstance():
 
             elif key == ord("."):
                 pass
+
+            elif key == ord("k"):
+                self.cursor = Cursor(self, self.player.x, self.player.y)
 
             elif key == ord("i"):
                 self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.use_item)
