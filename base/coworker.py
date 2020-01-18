@@ -10,10 +10,11 @@ class Mob(BaseObject):
      - includes ticking needs, managing AI decisions
     """
     max_inventory = 4
-    needs = ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
 
-    def __init__(self, social, hunger, thirst, bladder, bowels, energy, gender, job, *args, **kwargs):
+    def __init__(self, needs, social, hunger, thirst, bladder, bowels, energy, gender, job, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.needs = needs
+
         self.social = social
         self.hunger = hunger
         self.thirst = thirst

@@ -80,8 +80,11 @@ class Cursor():
         self.game.init_popup("Tile Contents", options=self.highlighted, popup_func=self.request_selected_options)
 
     def request_selected_options(self, selected_obj):
-        options = getattr(self.game.player, "interactions", [])
-        self.game.init_popup(f"{selected_obj.name} options", options=options, func_target=selected_obj)
+        options = getattr(selected_obj, "actions", [])
+        self.game.init_popup(
+            f"{selected_obj.name} options", options=options, popup_func=selected_obj.init_actions,
+            func_target=self.game.player
+        )
 
     def move(self, mod_x, mod_y):
         self.x += mod_x
@@ -274,19 +277,18 @@ class GameInstance():
         self.renderer.init_popup(*args, **kwargs)
 
     def create_coworker(self, x, y, job="analyst", creating_player=False):
-        params = {
-            "char": "@",
-            "satisfies": ['social'],
-            "blocks": True,
-            "obj_type": "mob",
+        # Pulling base coworker params & randomizing starting stats
+        params = game_objects["Coworker"]
+        params.update({
             "social": random.randint(25, 100),
             "hunger": random.randint(25, 100),
             "thirst": random.randint(25, 100),
             "bladder": random.randint(75, 100),
             "bowels": random.randint(75, 100),
             "energy": random.randint(25, 100)
-        }
+        })
 
+        # Determining name at random
         if random.randint(0, 100) < 61:
             params["gender"] = "female"
             params["name"] = female_names[random.randrange(0, len(female_names))]
@@ -294,7 +296,6 @@ class GameInstance():
             params["gender"] = "male"
             params["name"] = male_names[random.randrange(0, len(male_names))]
 
-        # Rolling Dice on special jobs
         # TODO: Move special jobs out into Defs
         if not creating_player:
             params["job"] = game_jobs[job]["name"]
@@ -302,7 +303,6 @@ class GameInstance():
 
         else:
             params["job"] = game_jobs[job]["name"]
-            params["color"] = "white"
 
         coworker = self.create_object(x, y, params)
         return coworker
@@ -348,14 +348,14 @@ class GameInstance():
                 opt_index = key - ord('a')
                 choice = self.popup_options[opt_index]
 
-                if self.cursor and not self.func_target:
-                    self.cursor.request_selected_options(choice)
-                    return
-
                 # Handles cursor based interations
                 # cursor provides target to GameInstance
+                if self.cursor and not self.func_target:
+                    self.popup_func(choice)
+                    return
+
                 elif self.cursor and self.func_target:
-                    choice.interaction(self.func_target)
+                    self.popup_func(self.func_target, [choice])
 
                 # Handles standard callback functions provided by object that
                 # called the popup

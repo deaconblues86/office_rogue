@@ -136,12 +136,12 @@ class BaseObject():
     def destroy(self):
         self.game.delete_object(self)
 
-    def init_actions(self, actions, user):
+    def init_actions(self, user, actions=[]):
         if not actions:
             self._action()
             return None
 
-        self.game.submit_actions(self.actions, user, self)
+        self.game.submit_actions(actions, user, self)
 
     def _action(self):
         self.broadcast(f"{self.name.capitalize()} has no use!", "red")
@@ -181,7 +181,7 @@ class Item(BaseObject):
             print(f"{self.name}: {self.x},{self.y} occupied by {self.occupied_by.name}")
             user.broken_target(self)
         else:
-            self.init_actions(self.actions, user)
+            self.init_actions(user, self.actions)
 
     def move_to_inventory(self, holder):
         holder.inventory.append(self)
@@ -236,7 +236,7 @@ class Vendor(BaseObject):
         - AI will get first item that satisfies need. If none exist, will be marked as broken
         """
         # Render Menu if player
-        self.init_actions(self.actions, user)
+        self.init_actions(user, self.actions)
         if user is self.game.player:
             self.game.init_popup(self.name.capitalize(), options=self.inventory, popup_func=self.dispense)
         else:

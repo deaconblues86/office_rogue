@@ -125,5 +125,11 @@
         "duration": 8,
         "produces": null,
         "consumes": null
+    },
+    "call_over": {
+        "chars": ["!", "?"],
+        "color": "white",
+        "duration": 1,
+        "effects": []
     }
 }

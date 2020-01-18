@@ -173,7 +173,7 @@ class Renderer():
         self.game.popup_options = options
         self.game.popup_func = popup_func
         self.game.func_target = func_target
-        self.popup.load_options(title, msg, [x.name for x in self.game.popup_options])
+        self.popup.load_options(title, msg, [x if isinstance(x, str) else x.name for x in self.game.popup_options])
 
     def render_tasks(self):
         x = map_width

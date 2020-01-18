@@ -238,5 +238,15 @@
         "on_drop": {
             "request": "Clean Up"
         }
+    },
+    "Coworker": {
+        "name": "Coworker",
+        "char": "@",
+        "color": "white",
+        "satisfies": ["social"],
+        "obj_type": "mob",
+        "blocks": true,
+        "actions": ["call_over"],
+        "needs": ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
     }
 }
