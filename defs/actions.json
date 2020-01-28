@@ -3,6 +3,7 @@
         "chars": ["&", "$", "o", "*"],
         "color": "white",
         "duration": 4,
+        "satisfies": ["work"],
         "effects": [
             {"target_stat": "cleanliness", "new_value": 100},
             {"actor_stat": "work", "modifier": 50}
@@ -12,6 +13,7 @@
         "chars": ["&", "$", "o", "*"],
         "color": "white",
         "duration": 4,
+        "satisfies": ["work"],
         "effects": [
             {"actor_stat": "work", "modifier": 50}
         ]
@@ -20,6 +22,7 @@
         "chars": ["^", "}", "{", "<", ">"],
         "color": "grey",
         "duration": 4,
+        "satisfies": ["work"],
         "effects":[
             {"actor_stat": "work", "modifier": 50},
             {"target_stat": "durability", "new_value": 100}
@@ -29,6 +32,7 @@
         "chars": ["!", "$", "#", "%"],
         "color": "yellow",
         "duration": 4,
+        "satisfies": ["social"],
         "effects": [
             {"actor_stat": "social", "modifier": 25}
         ]
@@ -37,6 +41,7 @@
         "chars": ["1", "0", "-", "|"],
         "color": "green",
         "duration": 6,
+        "satisfies": ["mood"],
         "effects": [
             {"actor_stat": "mood", "modifier": 25},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
@@ -46,6 +51,7 @@
         "chars": ["P", "O", "~"],
         "color": "light_sepia",
         "duration": 4,
+        "satisfies": ["bowels"],
         "effects": [
             {"actor_stat": "bowels", "new_value": 100},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
@@ -56,6 +62,7 @@
         "chars": ["*", ":"],
         "color": "light_yellow",
         "duration": 2,
+        "satisfies": ["bladder"],
         "effects": [
             {"actor_stat": "bladder", "new_value": 100},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
@@ -66,6 +73,7 @@
         "chars": ["o", ".", "p"],
         "color": "dark_sepia",
         "duration": 2,
+        "satisfies": ["energy", "thirst"],
         "effects": [
             {"actor_stat": "energy", "new_value": 100},
             {"actor_stat": "thirst", "modifier": 25},
@@ -78,6 +86,7 @@
         "chars": ["!", "^"],
         "color": "light_orange",
         "duration": 2,
+        "satisfies": ["work"],
         "effects": [
             {"actor_stat": "work", "modifier": 50}
         ]
@@ -93,6 +102,7 @@
         "chars": ["o", ".", "d"],
         "color": "light_blue",
         "duration": 1,
+        "satisfies": ["thirst"],
         "effects": [
             {"actor_stat": "thirst", "modifier": 50},
             {"actor_stat": "bladder", "modifier": -10},
@@ -103,6 +113,7 @@
         "chars": ["x", "*", "!"],
         "color": "orange",
         "duration": 1,
+        "satisfies": ["hunger"],
         "effects": [
             {"actor_stat": "hunger", "modifier": 50},
             {"actor_stat": "bowels", "modifier": -10},
@@ -113,6 +124,7 @@
         "chars": ["1", "2", "3", "A", "B", "C"],
         "color": "light_green",
         "duration": 8,
+        "satisfies": ["work"],
         "effects": [
             {"actor_stat": "work", "exec": "ret = (app_target.energy / app_target.max_energy) * 33"},
             {"actor_stat": "energy", "exec": "ret = ((app_target.energy / app_target.max_energy) * 33) * -0.25"},
@@ -123,8 +135,8 @@
         "chars": ["A", "B", "C", "!", "."],
         "color": "grey",
         "duration": 8,
-        "produces": null,
-        "consumes": null
+        "produces": ["report"],
+        "consumes": ["paper"]
     },
     "call_over": {
         "chars": ["!", "?"],
