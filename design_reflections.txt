@@ -81,3 +81,28 @@ Design overview:
 
 Cursor Actions:
     - Needs to be list of available actions from target object as well as available actions from objects in own inventory
+
+
+Proposed Action System:
+    - Coworkers have list of all available actions
+    - Actions can have requirements (make_coffee requires coffee & coffee maker)
+        job:  The job required to perform the action
+        target:  The specific named object upon which the action is perfomed if applicable
+        target_state:  The required state of the object upon which the action is performed (dirty, broken) if applicable
+        target_tag:  The required tag of the object upon which the action is performed (animal, human, appliance) if applicable
+        target_task: (boolean) If True, target object will make itself known
+            - For target_tasks, will need to check "board" of available requests in game instance
+        reagents:  "Ingredients" or "Tools" needed to complete the action
+        range: The distance, default 1 (adjacent), from the target at which the action can be performed
+    - Actions will have satisfies tag.  Indicates the need the action would fufill
+        - Based on action requirments, tasks can then be created, ordered, and stored in Memories (drink_coffee satisifies energy => requires coffee => make_coffee produces coffee => make_coffee requires coffee beans & coffee maker => supply closet vends coffee beans)
+    - Including old "target_func" in some actions' (restocking) effects attribute
+        - May not be ideal, but whats the alternative??
+            - could just be unique to vendors, if so fuck it..
+            - could also "give" the stock which would be a bit more generic
+    - Dump old Request system
+        - in it's place, objects have triggers:
+            triggers include configurable state change & action that can now be performed (drop: clean_up, dirty: clean)
+
+    Side Note:
+        - Interactive Menu of available actions can be populated based on chosen object/chosen object state under cursor, held reagents, etc.

@@ -1,5 +1,5 @@
 import math
-from constants import game_objects, colors
+from constants import game_objects, colors, actions_by_need
 from base.thoughts import Memories
 from base.items import BaseObject, Item, attrFormatter
 
@@ -171,6 +171,8 @@ class Mob(BaseObject):
                 if perc < lowest_status:
                     lowest_status = perc
                     self.satisfying = need
+
+            options = actions_by_need[self.satisfying]
 
             # First check inventory
             in_inv = list(filter(lambda x: self.satisfying in x.satisfies, self.inventory))

@@ -1,5 +1,6 @@
 import json
 import tcod
+from collections import defaultdict
 from base.map import Rect
 
 ROOM_SECTOR_X = 18
@@ -73,6 +74,9 @@ with open("defs/requests.json") as req_file:
 
 with open("defs/actions.json") as obj_file:
     game_actions = json.loads(obj_file.read())
+    actions_by_need = defaultdict(list)
+    for action in game_actions:
+        actions_by_need[action["satisfies"]].append(action)
 
 with open("defs/emissions.json") as emit_file:
     game_auras = json.loads(emit_file.read())

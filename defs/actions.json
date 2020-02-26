@@ -4,6 +4,10 @@
         "color": "white",
         "duration": 4,
         "satisfies": ["work"],
+        "requires": {
+            "job": "housekeeping",
+            "target_state": "dirty"
+        },
         "effects": [
             {"target_stat": "cleanliness", "new_value": 100},
             {"actor_stat": "work", "modifier": 50}
@@ -14,8 +18,13 @@
         "color": "white",
         "duration": 4,
         "satisfies": ["work"],
+        "requires": {
+            "job": "housekeeping",
+            "target": "Trash"
+        },
         "effects": [
-            {"actor_stat": "work", "modifier": 50}
+            {"actor_stat": "work", "modifier": 50},
+            {"target_func": "destroy"}
         ]
     },
     "repairing": {
@@ -23,6 +32,26 @@
         "color": "grey",
         "duration": 4,
         "satisfies": ["work"],
+        "requires": {
+            "job": "maintenance",
+            "target_task": true
+        },
+        "effects":[
+            {"actor_stat": "work", "modifier": 50},
+            {"target_stat": "durability", "new_value": 100}
+        ]
+    },
+    "servicing_terminal": {
+        "chars": ["^", "}", "{", "<", ">"],
+        "color": "light_blue",
+        "duration": 4,
+        "satisfies": ["work"],
+        "requires": {
+            "job": "it",
+            "target": "Terminal",
+            "target_state": "broken",
+            "note": "this could be done via target_task attr instead, but will leave here for now for testing"
+        },
         "effects":[
             {"actor_stat": "work", "modifier": 50},
             {"target_stat": "durability", "new_value": 100}
@@ -33,6 +62,9 @@
         "color": "yellow",
         "duration": 4,
         "satisfies": ["social"],
+        "requires": {
+            "target": "Coworker"
+        },
         "effects": [
             {"actor_stat": "social", "modifier": 25}
         ]
@@ -42,6 +74,9 @@
         "color": "green",
         "duration": 6,
         "satisfies": ["mood"],
+        "requires": {
+            "target": "Cellphone"
+        },
         "effects": [
             {"actor_stat": "mood", "modifier": 25},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
@@ -52,6 +87,9 @@
         "color": "light_sepia",
         "duration": 4,
         "satisfies": ["bowels"],
+        "requires": {
+            "target": "Toilet"
+        },
         "effects": [
             {"actor_stat": "bowels", "new_value": 100},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
@@ -63,6 +101,10 @@
         "color": "light_yellow",
         "duration": 2,
         "satisfies": ["bladder"],
+        "requires": {
+            "target": "Toilet",
+            "note": "This is kind of an OR situation between Toilet and Urinal"
+        },
         "effects": [
             {"actor_stat": "bladder", "new_value": 100},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
@@ -74,6 +116,9 @@
         "color": "dark_sepia",
         "duration": 2,
         "satisfies": ["energy", "thirst"],
+        "requires": {
+            "target": "Coffee Maker"
+        },
         "effects": [
             {"actor_stat": "energy", "new_value": 100},
             {"actor_stat": "thirst", "modifier": 25},
@@ -87,22 +132,33 @@
         "color": "light_orange",
         "duration": 2,
         "satisfies": ["work"],
+        "requires": {
+            "job": "maintenance",
+            "target_task": true
+        },
         "effects": [
-            {"actor_stat": "work", "modifier": 50}
+            {"actor_stat": "work", "modifier": 50},
+            {"target_func": "restock_items"}
         ]
     },
     "vending": {
         "chars": ["$"],
         "color": "light_green",
         "duration": 1,
-        "produces": null,
-        "consumes": null
+        "produces": true,
+        "requires": {
+            "target_tag": "vendor",
+            "reagents": []
+        }
     },
     "drinking_water": {
         "chars": ["o", ".", "d"],
         "color": "light_blue",
         "duration": 1,
         "satisfies": ["thirst"],
+        "requires": {
+            "target": "Water Bottle"
+        },
         "effects": [
             {"actor_stat": "thirst", "modifier": 50},
             {"actor_stat": "bladder", "modifier": -10},
@@ -114,6 +170,9 @@
         "color": "orange",
         "duration": 1,
         "satisfies": ["hunger"],
+        "requires": {
+            "target": "Snack"
+        },
         "effects": [
             {"actor_stat": "hunger", "modifier": 50},
             {"actor_stat": "bowels", "modifier": -10},
@@ -125,23 +184,35 @@
         "color": "light_green",
         "duration": 8,
         "satisfies": ["work"],
+        "requires": {
+            "target": "Terminal"
+        },
         "effects": [
             {"actor_stat": "work", "exec": "ret = (app_target.energy / app_target.max_energy) * 33"},
             {"actor_stat": "energy", "exec": "ret = ((app_target.energy / app_target.max_energy) * 33) * -0.25"},
             {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
        ]
     },
-    "writing": {
+    "writing_report": {
         "chars": ["A", "B", "C", "!", "."],
         "color": "grey",
         "duration": 8,
         "produces": ["report"],
-        "consumes": ["paper"]
+        "requires": {
+            "target": "Desk",
+            "reagents": ["paper"]
+        },
+        "effects": [
+            {"reagent_func": "destroy"}
+        ]
     },
     "call_over": {
         "chars": ["!", "?"],
         "color": "white",
         "duration": 1,
+        "requires": {
+            "target": "Coworker"
+        },
         "effects": []
     }
 }

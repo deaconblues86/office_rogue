@@ -1,0 +1,11 @@
+{
+    "note": {
+        "comment": "while this is technically configurable, all of these stats are hidden away in the source code",
+        "more": "That's probably fine for stuff we'd always want, but need to be able to add new attr to items for expandability",
+        "specific":  "Currently have on_create & on_drop as triggers...  might be worth having these special sort of 'states' around, however all",
+        "specific more": "of said triggers can be done via action targets (since both place in world)"
+    },
+    "dirty": {"stat": "cleanliness", "value": 0},
+    "broken": {"stat": "durability", "value": 0},
+    "empty": {"state": "inventory", "value": 0}
+}

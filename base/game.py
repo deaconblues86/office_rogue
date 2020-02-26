@@ -2,8 +2,8 @@ import random
 
 from tcod.event import EventDispatch
 from base.enums import ObjType
-from base.items import BaseObject, Item, Vendor, Action
-from base.thoughts import WorkRequest
+from base.items import BaseObject, Item, Vendor
+from base.thoughts import WorkRequest, Action
 from base.coworker import Mob
 from constants import (
     female_names,

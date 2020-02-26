@@ -1,7 +1,5 @@
-from random import randint
 from base.enums import ObjType
 from constants import colors, game_objects
-from base.thoughts import WorkRequest
 
 
 def attrFormatter(attrs, obj, override={}, base=False):
@@ -32,72 +30,6 @@ def attrFormatter(attrs, obj, override={}, base=False):
         details += f" - {attr}: {val}\n"
 
     return details
-
-
-class Action():
-    def __init__(self, name, chars, color, actor, target, duration, effects=[], produces=None, consumes=None):
-        self.name = name
-        self.chars = chars
-        self.color = color
-        self.actor = actor
-        self.target = target
-        self.duration = duration
-
-        self.effects = effects
-        self.produces = produces
-        self.consumes = consumes
-
-        # Sets inital state of actor & target (if not work request)
-        # TODO: Currently allowing for multitasking.  Each Action should pile on to the user occupied attr
-        # (e.g. 4 + 2).  Though, they're all ticked essentially simultaneously, only once they're nolonger occupied
-        # will the actor resolve its actions
-        # May want to keep like this since most things limited by proximity, but for some things could add
-        # a blocking status.  Or maybe blocking not necessary since time stacks as it does prior to resolution
-        self.actor.occupied += duration
-        if not isinstance(self.target, WorkRequest):
-            self.target.occupied_by = actor
-
-    def tick_action(self):
-        self.actor.occupied -= 1
-        if not self.actor.occupied:
-            self.resolve_action()
-
-    def resolve_action(self):
-        for effect in self.effects:
-            self.apply_effect(effect)
-
-        if isinstance(self.target, WorkRequest):
-            self.target.resolve_request()
-            self.actor.finished_action(self)
-        else:
-            self.target.occupied_by = None
-            self.target.eval_events()
-            self.actor.finished_action(self)
-
-    def apply_effect(self, effect):
-        if effect.get("actor_stat"):
-            app_target = self.actor
-            app_stat = effect.get("actor_stat")
-        else:
-            app_target = self.target
-            app_stat = effect.get("target_stat")
-
-        if effect.get("new_value"):
-            setattr(app_target, app_stat, effect.get("new_value"))
-        elif effect.get("modifier"):
-            mod = effect.get("modifier")
-            if mod < 0:
-                setattr(app_target, app_stat, int(max(getattr(app_target, app_stat, 0) + mod, 0)))
-            else:
-                setattr(app_target, app_stat, int(min(getattr(app_target, app_stat, 0) + mod, 100)))
-        else:
-            exec_vars = {"app_target": app_target, "randint": randint, "ret": 0}
-            exec(effect.get("exec"), exec_vars)
-            mod = exec_vars["ret"]
-            if mod < 0:
-                setattr(app_target, app_stat, int(max(getattr(app_target, app_stat, 0) + mod, 0)))
-            else:
-                setattr(app_target, app_stat, int(min(getattr(app_target, app_stat, 0) + mod, 100)))
 
 
 class BaseObject():

@@ -6,6 +6,9 @@
         "blocks": true,
         "satisfies": [],
         "obj_type": "appliance",
+        "triggers": {
+            "empty": {"request": "restocking"}
+        },
         "on_no_stock": {
             "request": "Restock"
         }
@@ -23,12 +26,17 @@
         "color": "yellow",
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
-        "actions": ["vending"],
         "obj_type": "vendor",
+        "tags": ["vendor"],
         "stock": [
             {"name": "Water Bottle", "max_stock": 4},
             {"name": "Snack", "max_stock": 4}
         ],
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"},
+            "empty": {"request": "restocking"}
+        },
         "on_broken": {
             "request": "Repair"
         },
@@ -44,6 +52,10 @@
         "blocks": true,
         "actions": ["making_coffee"],
         "obj_type": "appliance",
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"}
+        },
         "on_broken": {
             "request": "Repair"
         }
@@ -55,6 +67,14 @@
         "blocks": true,
         "satisfies": [],
         "obj_type": "appliance",
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"},
+            "dirty": {
+                "emits": "Grossed Out",
+                "request": "cleaning"
+            }
+        },
         "on_broken": {
             "request": "Repair"
         },
@@ -70,6 +90,14 @@
         "blocks": true,
         "satisfies": [],
         "obj_type": "appliance",
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"},
+            "dirty": {
+                "emits": "Grossed Out",
+                "request": "cleaning"
+            }
+        },
         "on_broken": {
             "request": "Repair"
         },
@@ -84,8 +112,8 @@
         "color": "light_green",
         "satisfies": ["work"],
         "blocks": true,
-        "actions": ["computing"],
         "obj_type": "appliance",
+        "tags": ["electronic"],
         "on_broken": {
             "request": "Service"
         }
@@ -96,8 +124,15 @@
         "color": "white",
         "blocks": true,
         "satisfies": ["bladder"],
-        "actions": ["peeing"],
         "obj_type": "appliance",
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"},
+            "dirty": {
+                "emits": "Grossed Out",
+                "request": "cleaning"
+            }
+        },
         "on_broken": {
             "request": "Repair"
         },
@@ -113,6 +148,14 @@
         "blocks": true,
         "satisfies": [],
         "obj_type": "appliance",
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"},
+            "dirty": {
+                "emits": "Grossed Out",
+                "request": "cleaning"
+            }
+        },
         "on_broken": {
             "request": "Repair"
         },
@@ -127,8 +170,15 @@
         "color": "white",
         "blocks": true,
         "satisfies": ["bladder", "bowels"],
-        "actions": ["pooing", "peeing"],
         "obj_type": "appliance",
+        "tags": ["appliance"],
+        "triggers": {
+            "broken": {"request": "repairing"},
+            "dirty": {
+                "emits": "Grossed Out",
+                "request": "cleaning"
+            }
+        },
         "on_broken": {
             "request": "Repair"
         },
@@ -181,8 +231,10 @@
         "char": "!",
         "color": "light_blue",
         "satisfies": ["thirst"],
-        "actions": ["drinking_water"],
         "obj_type": "item",
+        "triggers": {
+            "broken": {"become": "Trash"}
+        },
         "on_broken": {
             "become": "Trash"
         }
@@ -192,8 +244,10 @@
         "char": "^",
         "color": "light_green",
         "satisfies": ["hunger"],
-        "actions": ["snacking"],
         "obj_type": "item",
+        "triggers": {
+            "broken": {"become": "Trash"}
+        },
         "on_broken": {
             "become": "Trash"
         }
@@ -203,7 +257,6 @@
         "char": "[",
         "color": "light_orange",
         "satisfies": ["mood"],
-        "actions": ["surfing"],
         "obj_type": "item"
     },
     "Urine": {
@@ -236,17 +289,16 @@
         "emits": "Grossed Out",
         "obj_type": "item",
         "on_drop": {
-            "request": "Clean Up"
+            "request": "Clean Up",
+            "note": "Trash this ASAP"
         }
     },
     "Coworker": {
         "name": "Coworker",
         "char": "@",
         "color": "white",
-        "satisfies": ["social"],
         "obj_type": "mob",
         "blocks": true,
-        "actions": ["call_over"],
         "needs": ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
     }
 }
