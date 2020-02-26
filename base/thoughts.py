@@ -38,11 +38,12 @@ class Action():
         self.satisfies = satisfies
 
         # Initializing Action requirements
-        self.actor_job = requires.get("job", None)
-        self.req_object = requires.get("target", None)
-        self.req_state = requires.get("target_state", None)
-        self.req_task = requires.get("target_task", False)
-        self.req_reagents = requires.get("reagents")
+        self.actor_job = requires.get("job", None)              # Required Job to peform actions
+        self.req_task = requires.get("target_task", False)      # Target will raise it's own alarm OR
+        self.req_object = requires.get("target", None)          # Target is specified by object name OR
+        self.req_tags = requires.get("target_tag", None)        # Target is specified by generalized object tag
+        self.req_state = requires.get("target_state", None)     # Target requires a certain state
+        self.req_reagents = requires.get("reagents", [])
 
         # Handling producing actions
         # Will load a dict of Vendors by name as well as what they stock
@@ -78,32 +79,22 @@ class Action():
         self.actor.finished_action(self)
 
     def apply_effect(self, effect):
-        # TODO: This is a bit of a hot mess and assumes the same thing happens to all reagents
-        # Calls target's targeted function
-        if effect.get("target_func"):
-            req_method = getattr(self.target, self.target_func)
-            req_method()
-            return
-
-        if effect.get("reagent_func"):
-            for x in self.reagents:
-                req_method = getattr(self.x, self.target_func)
-                req_method()
-            return
-
-        # Determines whether actor or target is being acted upon
-        if effect.get("actor_stat"):
-            app_targets = [self.actor]
-            app_stat = effect.get("actor_stat")
-        elif effect.get("reagent_stat"):
-            app_targets = self.reagents
-            app_stat = effect.get("reagent_stat")
+        # Determines to what the effect is being applied
+        if effect["hits"] == "target":
+            app_target = self.target
+        elif effect["hits"] == "actor":
+            app_target = self.actor
         else:
-            app_targets = [self.target]
-            app_stat = effect.get("target_stat")
+            app_target = [x for x in self.reagents if x.name == effect["hits"]][0]
 
-        # Applies new value, modifies targeted value, or runs supplied python
-        for app_target in app_targets:
+        # If it's function call it, else it's a stat
+        if effect.get("func"):
+            req_method = getattr(app_target, effect["func"])
+            req_method()
+        else:
+            app_stat = effect["stat"]
+
+            # TODO: Use setter/getter approach for stats to avoid the mod check
             if effect.get("new_value"):
                 setattr(app_target, app_stat, effect.get("new_value"))
             elif effect.get("modifier"):

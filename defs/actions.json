@@ -9,8 +9,8 @@
             "target_state": "dirty"
         },
         "effects": [
-            {"target_stat": "cleanliness", "new_value": 100},
-            {"actor_stat": "work", "modifier": 50}
+            {"hits": "target", "stat": "cleanliness", "new_value": 100},
+            {"hits": "actor", "stat": "work", "modifier": 50}
         ]
     },
     "cleaning_up": {
@@ -23,8 +23,8 @@
             "target": "Trash"
         },
         "effects": [
-            {"actor_stat": "work", "modifier": 50},
-            {"target_func": "destroy"}
+            {"hits": "actor", "stat": "work", "modifier": 50},
+            {"hits": "target", "func": "destroy"}
         ]
     },
     "repairing": {
@@ -37,8 +37,8 @@
             "target_task": true
         },
         "effects":[
-            {"actor_stat": "work", "modifier": 50},
-            {"target_stat": "durability", "new_value": 100}
+            {"hits": "actor", "stat": "work", "modifier": 50},
+            {"hits": "target", "stat": "durability", "new_value": 100}
         ]
     },
     "servicing_terminal": {
@@ -53,8 +53,8 @@
             "note": "this could be done via target_task attr instead, but will leave here for now for testing"
         },
         "effects":[
-            {"actor_stat": "work", "modifier": 50},
-            {"target_stat": "durability", "new_value": 100}
+            {"hits": "actor", "stat": "work", "modifier": 50},
+            {"hits": "target", "stat": "durability", "new_value": 100}
         ]
     },
     "chatting": {
@@ -66,7 +66,7 @@
             "target": "Coworker"
         },
         "effects": [
-            {"actor_stat": "social", "modifier": 25}
+            {"hits": "actor", "stat": "social", "modifier": 25}
         ]
     },
     "surfing": {
@@ -78,8 +78,8 @@
             "target": "Cellphone"
         },
         "effects": [
-            {"actor_stat": "mood", "modifier": 25},
-            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
+            {"hits": "actor", "stat": "mood", "modifier": 25},
+            {"hits": "target", "stat": "durability", "exec": "ret = randint(5, 10) * -1"}
         ]
     },
     "pooing": {
@@ -91,9 +91,9 @@
             "target": "Toilet"
         },
         "effects": [
-            {"actor_stat": "bowels", "new_value": 100},
-            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
-            {"target_stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
+            {"hits": "actor", "stat": "bowels", "new_value": 100},
+            {"hits": "target", "stat": "durability", "exec": "ret = randint(5, 10) * -1"},
+            {"hits": "target", "stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
         ]
     },
     "peeing": {
@@ -106,9 +106,9 @@
             "note": "This is kind of an OR situation between Toilet and Urinal"
         },
         "effects": [
-            {"actor_stat": "bladder", "new_value": 100},
-            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"},
-            {"target_stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
+            {"hits": "actor", "stat": "bladder", "new_value": 100},
+            {"hits": "target", "stat": "durability", "exec": "ret = randint(5, 10) * -1"},
+            {"hits": "target", "stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
         ]
     },
     "making_coffee": {
@@ -120,11 +120,11 @@
             "target": "Coffee Maker"
         },
         "effects": [
-            {"actor_stat": "energy", "new_value": 100},
-            {"actor_stat": "thirst", "modifier": 25},
-            {"actor_stat": "bowels", "modifier": -10},
-            {"actor_stat": "bladder", "modifier": -10},
-            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
+            {"hits": "actor", "stat": "energy", "new_value": 100},
+            {"hits": "actor", "stat": "thirst", "modifier": 25},
+            {"hits": "actor", "stat": "bowels", "modifier": -10},
+            {"hits": "actor", "stat": "bladder", "modifier": -10},
+            {"hits": "target", "stat": "durability", "exec": "ret = randint(5, 10) * -1"}
         ]
     },
     "restocking": {
@@ -137,8 +137,8 @@
             "target_task": true
         },
         "effects": [
-            {"actor_stat": "work", "modifier": 50},
-            {"target_func": "restock_items"}
+            {"hits": "actor", "stat": "work", "modifier": 50},
+            {"hits": "target", "func": "restock_items"}
         ]
     },
     "vending": {
@@ -149,7 +149,10 @@
         "requires": {
             "target_tag": "vendor",
             "reagents": []
-        }
+        },
+        "effects": [
+            {"hits": "target", "func": "use"}
+        ]
     },
     "drinking_water": {
         "chars": ["o", ".", "d"],
@@ -160,9 +163,9 @@
             "target": "Water Bottle"
         },
         "effects": [
-            {"actor_stat": "thirst", "modifier": 50},
-            {"actor_stat": "bladder", "modifier": -10},
-            {"target_stat": "durability", "modifier": -50}
+            {"hits": "actor", "stat": "thirst", "modifier": 50},
+            {"hits": "actor", "stat": "bladder", "modifier": -10},
+            {"hits": "target", "stat": "durability", "modifier": -50}
         ]
     },
     "snacking": {
@@ -174,9 +177,9 @@
             "target": "Snack"
         },
         "effects": [
-            {"actor_stat": "hunger", "modifier": 50},
-            {"actor_stat": "bowels", "modifier": -10},
-            {"target_stat": "durability", "modifier": -25}
+            {"hits": "actor", "stat": "hunger", "modifier": 50},
+            {"hits": "actor", "stat": "bowels", "modifier": -10},
+            {"hits": "target", "stat": "durability", "modifier": -25}
         ]
     },
     "computing": {
@@ -188,9 +191,9 @@
             "target": "Terminal"
         },
         "effects": [
-            {"actor_stat": "work", "exec": "ret = (app_target.energy / app_target.max_energy) * 33"},
-            {"actor_stat": "energy", "exec": "ret = ((app_target.energy / app_target.max_energy) * 33) * -0.25"},
-            {"target_stat": "durability", "exec": "ret = randint(5, 10) * -1"}
+            {"hits": "actor", "stat": "work", "exec": "ret = (app_target.energy / app_target.max_energy) * 33"},
+            {"hits": "actor", "stat": "energy", "exec": "ret = ((app_target.energy / app_target.max_energy) * 33) * -0.25"},
+            {"hits": "target", "stat": "durability", "exec": "ret = randint(5, 10) * -1"}
        ]
     },
     "writing_report": {
@@ -200,10 +203,10 @@
         "produces": ["report"],
         "requires": {
             "target": "Desk",
-            "reagents": ["paper"]
+            "reagents": ["Paper"]
         },
         "effects": [
-            {"reagent_func": "destroy"}
+            {"hits": "Paper", "func": "destroy"}
         ]
     },
     "call_over": {
@@ -213,6 +216,8 @@
         "requires": {
             "target": "Coworker"
         },
-        "effects": []
+        "effects": [
+            {"hits": "target", "func": "summon"}
+        ]
     }
 }
