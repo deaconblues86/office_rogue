@@ -1,10 +1,11 @@
+from functools import reduce
 from random import randint
-from constants import game_actions, game_objs, actions_by_need
-from utils import search_by_obj, search_by_tag
+from constants import game_actions, game_objects
+from utils import search_by_obj, search_by_tag, eval_obj_state
 
 
 class Action():
-    def __init__(self, actor, name, chars, color, duration, satisfies, requires=[], effects=[], produces=None):
+    def __init__(self, actor, name, chars, color, duration, satisfies=[], requires=[], effects=[], produces=[]):
         self.actor = actor
         self.target = None
         self.reagents = []
@@ -22,7 +23,7 @@ class Action():
 
         self.req_object = requires.get("target", None)          # Target is specified by object name OR
         self.req_tag = requires.get("target_tag", None)         # Target is specified by generalized object tag
-        self.req_workstation = self.req_object or self.req_tag  # Normalized Required Taggbet
+        self.req_workstation = self.req_object or self.req_tag  # Normalized Required Target
 
         self.req_state = requires.get("target_state", None)     # Target requires a certain state
 
@@ -32,31 +33,47 @@ class Action():
         # Will load a dict of Vendors by name as well as what they stock if simple "vending" action
         # Difference being, some actions only make things & some only buy things
         # In either case, it doesn't yield anything on its own (satisifies)
+        # In essence, "vending" action mutates depending on good required
+        # - target will be determined based on list of vendors
         self.produces = produces
+        self.producers = []
         if self.produces and not isinstance(self.produces, list):
-            self.producers = {x.name: x.stock for x in game_objs if x.stock}
-            print(self.producers)
+            self.producers = {
+                x["name"]: [s["name"]for s in x["stock"]]
+                for x in game_objects.values() if x.get("stock")
+            }
+            self.produces = reduce(lambda x, y: x + y, self.producers.values(), [])
 
         self.effects = effects
 
-        # Sets inital state of actor & target (if not work request)
-        # TODO: Currently allowing for multitasking.  Each Action should pile on to the user occupied attr
-        # (e.g. 4 + 2).  Though, they're all ticked essentially simultaneously, only once they're nolonger occupied
-        # will the actor resolve its actions
-        # May want to keep like this since most things limited by proximity, but for some things could add
-        # a blocking status.  Or maybe blocking not necessary since time stacks as it does prior to resolution
-        self.actor.occupied += duration
-
     def find_targets(self):
         targets = []
-        if self.req_task:
-            targets = self.actor.game.find_tasks(self.name)
+        if not self.req_workstation:
+            return self.actor
+        elif self.producers:
+            # Build a dictionary of possible producers/vendors that sell goods actor wants
+            possible_vendors = {
+                x: len([good for good in self.actor.memories.wanted_items if good in self.producers[x]])
+                for x in self.producers
+            }
+            best = sorted(possible_vendors, key=lambda x: possible_vendors[x], reverse=True)[0]
+            return self.actor.game.find_objs(best, self.req_state)
+        elif self.req_task:
+            return self.actor.game.find_tasks(self.name)
         elif self.req_object:
-            targets = self.actor.game.find_objs(self.req_object, self.req_state)
+            return self.actor.game.find_objs(self.req_object, self.req_state)
         else:
-            targets = self.actor.game.find_tags(self.req_tag, self.req_state)
+            return self.actor.game.find_tags(self.req_tag, self.req_state)
 
-        return targets
+    def valid_target(self, obj):
+        if self.req_task:
+            return obj in self.actor.game.find_tasks(self.name)
+        elif self.req_object:
+            return obj.name == self.req_object and eval_obj_state(obj, self.req_state)
+        elif self.req_tag:
+            return self.req_tag in obj.tags and eval_obj_state(obj, self.req_state)
+        else:
+            return True
 
     def missing_reagents(self):
         missing = []
@@ -77,6 +94,11 @@ class Action():
 
         return missing
 
+    def init_action(self):
+        self.target = self.actor.target
+        self.actor.occupied += self.duration
+        self.target.occupied_by = self.actor
+
     def tick_action(self):
         self.actor.occupied -= 1
         if not self.actor.occupied:
@@ -86,9 +108,10 @@ class Action():
         for effect in self.effects:
             self.apply_effect(effect)
 
-        self.target.occupied_by = None
         self.target.eval_triggers()
         self.actor.finished_action(self)
+        self.target.occupied_by = None
+        self.target = None              # TODO: Ya know...  could hang on to this target... re-eval as need
 
     def apply_effect(self, effect):
         # Determines to what the effect is being applied
@@ -129,12 +152,17 @@ class ActionCenter():
     def __init__(self, mob):
         self.mob = mob
         # Initilizes Actions based on mob's job
-        self.actions = filter(lambda x: not x.get("job", None) or x.get("job", None) == mob.job, game_actions)
+        self.actions = filter(lambda x: not x.get("job", None) or x.get("job", None) == mob.job, game_actions.values())
         self.actions = list(
             map(lambda x: Action(actor=self.mob, **x), self.actions)
         )
 
-    def find_need(self, need):
+    def available_actions(self, target_object):
+        return list(
+            filter(lambda x: x.valid_target(target_object) and not x.missing_reagents(), self.actions)
+        )
+
+    def find_action(self, need):
         """
         How deep can this really go?  Huge production chains of course lead to evaluations within evaluations, but
         is this that really a concern or what we want?
@@ -149,32 +177,44 @@ class ActionCenter():
         """
         possible_actions = []
         target_action = None
-        target = None
         # Starting from actions that satisfy need (lowest level)
         for action in filter(lambda x: need in x.satisfies, self.actions):
             missing_reagents = action.missing_reagents()
 
-            # If the action requires no external device & we possess what's required, do it
-            if not action.req_workstation and not missing_reagents:
-                target_action = action
-                break
-
-            # If we need a workstation & have everything, do it
-            target = self.determine_closest(action.find_targets())
-            if target and not missing_reagents:
+            # If we have everything we required for what we need, we're good
+            if not missing_reagents:
                 target_action = action
                 break
 
             possible_actions.append((action, missing_reagents))
         else:
-            target_action, target = self.eval_action_options(possible_actions)
+            target_action = self.walk_options(possible_actions)
 
-        if target_action:
-            self.init_action(target_action, target)
+        return target_action
+
+    def find_target(self, action):
+        targets = action.find_targets()
+        if targets is self.mob:
+            return self.mob
         else:
-            print(f"{self.name} can't satisfy {self.satisfying}")
+            return self.determine_closest(targets)
 
-    def eval_action_options(possibilites):
+    def store_tasks(self, task_list):
+        for task in task_list:
+            self.mob.memories.add_job(task_list)
+
+    def store_missing_reagents(self, reagent_list):
+        for reagent in reagent_list:
+            self.mob.memories.add_wanted(reagent)
+
+    def walk_action(self, action, missing_reagents):
+        for reagent in missing_reagents:
+            for production in filter(lambda x: reagent in x.produces, self.actions):
+                production_reagents = production.missing_reagents()
+                yield self.walk_action(production, production_reagents)
+                yield production, production_reagents
+
+    def walk_options(self, possibilites):
         """
         This is where we need to dive through the action tree to figure out the most efficient regardless of all the notes above...
         Let's consider hunting...
@@ -191,15 +231,24 @@ class ActionCenter():
                 - actions = what gives wood + what gives stone/what gives iron => what gives iron_ore + make_arrowheads
                 - at every step, some of these goods could be purchasable
         """
+        possible_task_lists = {}
         for possible in possibilites:
-            action, missing = possibilites
+            task_list = self.walk_action(*possible)
+            possible_task_lists[possible[0]] = list(task_list)
 
-            still_req = []
-            for x in missing:
-                i
+        # Weighing options only by number of tasks for now
+        winner = sorted(possible_task_lists, key=lambda x: len(possible_task_lists[x]))[0]
+        task_list = possible_task_lists[winner]
 
-
-
+        # If we have nested actions, store task list, store missing reagents, & return first item
+        # TODO: Assumes list is ordered from top (deep up tree) to bottom (action we actually want)
+        if task_list:
+            self.store_tasks(reduce(lambda x, y: x + y, [task[0] for task in task_list[1:]], []))
+            self.store_missing_reagents(reduce(lambda x, y: x + y, [task[1] for task in winner], []))
+            first_task = task_list[0][0]
+            return first_task
+        else:
+            return winner
 
     def determine_closest(self, targets):
         """
@@ -221,20 +270,12 @@ class ActionCenter():
                 continue
 
             # TODO: Dropped as the crow flies eval for actual path.  Depending on Cost, may have to redo
-            path = self.mob.game.calculate_target_path()
-            if not path:
-                print(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
-                self.broken_target(self.target)
-
-            if len(path) < min_distance:
+            path = self.mob.calculate_target_path(target_obj=target)
+            if path and len(path) < min_distance:
                 min_distance = len(path)
                 closest = target
 
         return closest
-
-    def broken_target(self, obj):
-        # Marks target as broken in memory
-        self.mob.memories.add_broken(obj)
 
 
 class Thought():
@@ -255,6 +296,7 @@ class Memories():
     def __init__(self, mob):
         self.mob = mob
         self.broken_items = []
+        self.wanted_items = []
         self.work_tasks = []
         self.thoughts = []
         self.relationships = []
@@ -289,5 +331,20 @@ class Memories():
         finally:
             self.broken_items.append(obj)
 
-    def finish_job(self, job):
+    def add_wanted(self, item):
+        self.wanted_items.append(item)
+
+    def remove_wanted(self, item):
+        self.wanted_items = [x for x in self.wanted_items if x != item.name]
+
+    def add_job(self, job):
+        self.work_tasks.append(job)
+
+    def start_next_job(self):
+        return self.work_tasks.pop(0)
+
+    def interrupt_job(self, job):
+        self.work_tasks.insert(0, job)
+
+    def remove_job(self, job):
         self.work_tasks = [x for x in self.work_tasks if x is not job]

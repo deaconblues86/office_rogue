@@ -76,10 +76,12 @@ with open("defs/actions.json") as action_file:
     game_actions = json.loads(action_file.read())
     actions_by_need = defaultdict(list)
     for action in game_actions:
-        actions_by_need[action["satisfies"]].append(action)
+        action_params = game_actions[action]
+        for satisfaction in action_params.get("satisfies", []):
+            actions_by_need[satisfaction].append(action_params)
 
 with open("defs/states.json") as state_file:
-    game_states = json.load(state_file.read())
+    game_states = json.loads(state_file.read())
 
 with open("defs/emissions.json") as emit_file:
     game_auras = json.loads(emit_file.read())

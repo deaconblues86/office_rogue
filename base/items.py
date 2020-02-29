@@ -42,6 +42,7 @@ class BaseObject():
         self.char = char
         self.color = colors[color]
         self.type = ObjType[obj_type]
+
         self.blocks = blocks
         self.blocks_sight = blocks
         if kwargs.get("blocks_sight"):
@@ -64,16 +65,6 @@ class BaseObject():
 
     def destroy(self):
         self.game.delete_object(self)
-
-    def init_actions(self, user, actions=[]):
-        if not actions:
-            self._action()
-            return None
-
-        self.game.log_actions(actions, user, self)
-
-    def _action(self):
-        self.broadcast(f"{self.name.capitalize()} has no use!", "red")
 
     def eval_triggers(self):
         triggered = []
@@ -99,33 +90,35 @@ class BaseObject():
 
 
 class Item(BaseObject):
-    def __init__(self, satisfies, actions=[], owner=None, *args, **kwargs):
+    def __init__(self, satisfies, tags, actions=[], owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.satisfies = satisfies
-        self.actions = actions
-
         # Note that owner & holder are not always the same
         # Holder: always current possessor
-        # Owner: person who purchased item or hodl item as it was transformed (for whatever reason)
+        # Owner: person who purchased item or held item as it was transformed (for whatever reason)
+        self.tags = tags
         self.owner = owner
         self.holder = None
 
     def use(self, user):
+        can_use = False
         if self.owner and self.owner is not user:
             self.broadcast(f"{self.name} doesn't belong to {user.name}")
+            user.broken_target()
         elif self.broken:
             self.broadcast(f"{self.name} is broken")
-            user.broken_target(self)
+            user.broken_target()
         elif self.occupied_by:
             print(f"{self.name}: {self.x},{self.y} occupied by {self.occupied_by.name}")
-            user.broken_target(self)
+            user.broken_target()
         else:
-            self.init_actions(user, self.actions)
+            can_use = True
+
+        return can_use
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
         details = super().dump()
-        return details + attrFormatter(["owner", "satisfies"], self)
+        return details + attrFormatter(["owner"], self)
 
 
 class Vendor(BaseObject):
@@ -135,11 +128,12 @@ class Vendor(BaseObject):
     Vendor no longer loses durability like other items
     Instead stocks are drained
     '''
-    def __init__(self, satisfies, stock, actions=[], owner=None, *args, **kwargs):
+    def __init__(self, satisfies, tags, stock, actions=[], owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
         self.stock = stock
         self.actions = actions
+        self.tags = tags
         self.owner = owner
         self.inventory = []
 
@@ -153,7 +147,7 @@ class Vendor(BaseObject):
             while curr_stock < item["max_stock"]:
                 curr_stock += 1
                 obj = Item(**obj_params)
-                obj.move_to_inventory(self)
+                self.inventory.append(obj)
 
     def use(self, user):
         """
@@ -162,7 +156,6 @@ class Vendor(BaseObject):
         - AI will get first item that satisfies need. If none exist, will be marked as broken
         """
         # Render Menu if player
-        self.init_actions(user, self.actions)
         if user is self.game.player:
             self.game.init_popup(self.name.capitalize(), options=self.inventory, popup_func=self.dispense)
         else:
@@ -173,7 +166,7 @@ class Vendor(BaseObject):
                 self.dispense(item, user)
                 break
             else:
-                user.broken_target(self)
+                user.broken_target()
 
     def dispense(self, item, user=None):
         """

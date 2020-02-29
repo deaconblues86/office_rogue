@@ -4,7 +4,6 @@ from collections import defaultdict
 from tcod.event import EventDispatch
 from base.enums import ObjType
 from base.items import BaseObject, Item, Vendor
-from base.thoughts import Action
 from base.coworker import Mob
 from utils import search_by_obj, search_by_tag
 from constants import (
@@ -13,7 +12,6 @@ from constants import (
     game_objects,
     game_jobs,
     game_auras,
-    game_actions,
     colors
 )
 
@@ -81,10 +79,10 @@ class Cursor():
         self.game.init_popup("Tile Contents", options=self.highlighted, popup_func=self.request_selected_options)
 
     def request_selected_options(self, selected_obj):
-        options = getattr(selected_obj, "actions", [])
+        options = self.game.player.action_center.available_actions(selected_obj)
+        self.game.player.target = selected_obj
         self.game.init_popup(
-            f"{selected_obj.name} options", options=options, popup_func=selected_obj.init_actions,
-            func_target=self.game.player
+            f"{selected_obj.name} options", options=options, popup_func=self.game.player.perform_action
         )
 
     def move(self, mod_x, mod_y):
@@ -169,23 +167,26 @@ class GameInstance():
     def create_object(self, x, y, obj_params, holder=None):
         obj_params.update({"game": self, "x": x, "y": y})
 
-        if obj_params["obj_type"] == "static":
-            obj = BaseObject(**obj_params)
-        elif obj_params["obj_type"] == "item":
-            obj = Item(**obj_params)
-        elif obj_params["obj_type"] == "appliance":
-            obj = Item(**obj_params)
-        elif obj_params["obj_type"] == "vendor":
-            obj = Vendor(**obj_params)
-        elif obj_params["obj_type"] == "mob":
-            obj = Mob(**obj_params)
+        try:
+            if obj_params["obj_type"] == "static":
+                obj = BaseObject(**obj_params)
+            elif obj_params["obj_type"] == "item":
+                obj = Item(**obj_params)
+            elif obj_params["obj_type"] == "appliance":
+                obj = Item(**obj_params)
+            elif obj_params["obj_type"] == "vendor":
+                obj = Vendor(**obj_params)
+            elif obj_params["obj_type"] == "mob":
+                obj = Mob(**obj_params)
+        except TypeError as e:
+            print(f" --- {obj_params.get('name', '__missing_name__')} is missing required attribute --- ")
+            raise e
 
         if holder:
             obj.owner = holder
             holder.pickup_item(obj)
 
         else:
-            self.submit_event(obj, getattr(obj, "on_create", {}))
             self.add_tile_content(obj)
 
         return obj
@@ -203,18 +204,10 @@ class GameInstance():
             holder.drop_item(obj)
 
         self.remove_tile_content(obj)
-        self.submit_event(obj, getattr(obj, "on_destroy", {}))
         del obj
 
-    def log_actions(self, actions, actor, target):
-        for action in actions:
-            action_obj = game_actions.get(action, None)
-            if not action_obj:
-                print(f"Action not found {action}")
-                return None
-            action_obj.update({"name": action, "actor": actor, "target": target})
-            action_obj = Action(**action_obj)
-            self.actions.append(action_obj)
+    def log_action(self, action):
+        self.actions.append(action)
 
     def complete_action(self, action):
         self.actions = [x for x in self.actions if x is not action]
@@ -328,12 +321,10 @@ class GameInstance():
 
                 # Handles cursor based interations
                 # cursor provides target to GameInstance
-                if self.cursor and not self.func_target:
+                # cursor never closes popup on it's own (due to that return)
+                if self.cursor:
                     self.popup_func(choice)
                     return
-
-                elif self.cursor and self.func_target:
-                    self.popup_func(self.func_target, [choice])
 
                 # Handles standard callback functions provided by object that
                 # called the popup

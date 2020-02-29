@@ -1,6 +1,5 @@
-import math
-from constants import game_objects, colors, actions_by_need
-from base.thoughts import Memories
+from constants import game_objects, colors
+from base.thoughts import Memories, ActionCenter
 from base.items import BaseObject, Item, attrFormatter
 
 
@@ -31,16 +30,19 @@ class Mob(BaseObject):
 
         # AI Controls
         # - target: That which the AI moves towards and plans to use
-        # - target_job: The particular job the AI is currently performing
+        # - target_action: The particular action the AI is/will be performing
         # - satisfying: The goal to be fulfilled upon usage
         # - occupying: The item the worker is currently using
         # - waiting: Allows coworker to wait, for a time, while their path clears
         # - memories: Stores experiances of the coworker
+        # - action_center: Determines what the coworker will do next
         self.target = None
+        self.target_action = None
         self.satisfying = None
         self.occupying = None
         self.waiting = 0
         self.memories = Memories(self)
+        self.action_center = ActionCenter(self)
 
         self.fired = False
         self._occupied = 0
@@ -88,57 +90,68 @@ class Mob(BaseObject):
         # Returns current tasks from Memories
         return self.memories.work_tasks
 
-    def add_task(self, job):
-        # Adds job to Memories.  Called by GameInstance when looking for candidates for WorkRequests
-        job.assignee = self
-        self.memories.work_tasks.append(job)
+    def broken_target(self, broken_obj=None):
+        # Marks target as broken in memory
+        broken_obj = broken_obj or self.target
+        self.memories.add_broken(broken_obj)
+        self.target = None
 
     def finished_action(self, action):
         # Notifies GameInstance that action was completed and resets target.  Called by Action object
         self.broadcast(f"{self.name} Finished {action.name}", action.color)
         self.game.complete_action(action)
         self.target = None
+        self.target_action = None
 
     def check_needs(self):
         """
-        Called every turn by take_turn. If not currently satsifying a need with a valid target in mind,
-        determine lowest need and find something to fix it.
-        - Inventory will be evaluated first to see if they have something for it
-        - If looking for work and a task has been assiged, that will be pursued.  Otherwise, the closest
-          unoccupied thing that satisfies will be picked and a path returned
-        - If a bad target was previously acquired (considered broken) that'll be dropped from evaluation
-          - bad targets: Unable to path
+        Called every turn by take_turn.
+         - Finds action to satisfy need if no action's in mind
+         - If a task list has been created, pull next item instead
+         - Finds target for current action if no target's in mind
         """
-        if not self.target:
-            lowest_status = 1
-            for need in self.needs:
-                if need == "social":
-                    continue
-                perc = getattr(self, need) / getattr(self, f"max_{need}")
-                if perc < lowest_status:
-                    lowest_status = perc
-                    self.satisfying = need
-
-            options = actions_by_need[self.satisfying]
-
-            # First check inventory
-            in_inv = list(filter(lambda x: self.satisfying in x.satisfies, self.inventory))
-            if in_inv:
-                self.use_item(in_inv[0])
-                return None
-
-            if self.satisfying == "work" and self.get_tasks():
-                task = self.get_tasks()[0]
-                self.target = task.target
+        if not self.target_action:
+            if self.memories.work_tasks:
+                self.target_action = self.memories.start_next_job()
             else:
-                targets = self.game.find_need(self.satisfying)
-                self.target = self.determine_closest(targets)
+                lowest_status = 1
+                for need in self.needs:
+                    if need == "social":
+                        continue
+                    perc = getattr(self, need) / getattr(self, f"max_{need}")
+                    if perc < lowest_status:
+                        lowest_status = perc
+                        self.satisfying = need
 
-            if not self.target:
+                self.target_action = self.action_center.find_action(self.satisfying)
+            if not self.target_action:
                 print(f"{self.name} can't satisfy {self.satisfying}")
-            else:
-                self.state = f"satisfying {self.satisfying}"
-                self.calculate_target_path()
+                return
+
+        if not self.target:
+            self.target = self.action_center.find_target(self.target_action)
+            if not self.target:
+                print(f"{self.name} can't find a target to perform {self.target_action.name}")
+                return
+
+            self.calculate_target_path()
+
+    def calculate_target_path(self, target_obj=None):
+        """
+        Asks GameInstance for path to target. If target now blocked, nothing will be returned.
+        - If our target is use, we need to path
+        - If its a bum target, add to memories as broken for now
+        """
+        if self.target is self:
+            self.path = []
+        else:
+            path_target = target_obj or self.target
+            self.path = self.game.find_path(self, path_target)
+            if not self.path:
+                print(f"{self.name} can't path to {path_target.name} {path_target.x}, {path_target.y}")
+                self.broken_target(path_target)
+
+        return self.path
 
     def tick_needs(self):
         """
@@ -216,8 +229,7 @@ class Mob(BaseObject):
 
         # Dest. has been reached -> use target, clear state
         if not self.path:
-            next_tile = self.game.get_tile(self.target.x, self.target.y)
-            self.move(next_tile, arrived=True)
+            self.perform_action()
             self.state = ""
             return None
 
@@ -238,22 +250,20 @@ class Mob(BaseObject):
 
             self.waiting += 1
             if self.waiting == 4:
-                print(f"{self.name} is recalcing...")
+                print(f"{self.name} is recalcing path...")
                 self.calculate_target_path()
             else:
                 print(f"{self.name} is waiting...")
 
-    def move(self, dest_tile, swapping=False, arrived=False):
+    def move(self, dest_tile, swapping=False):
         """
-        Handles Player and Coworker Move actions.  If player 'moves' into tile of appliance,
-        appliance will be used instead.  Likewise, Coworkers will be directed to do the same
+        Handles Player and Coworker Move actions
         - dest_tile: Tile to be moved to/use
         - swapping: When True, overrides typical blocked check to allow to coworkers to exchange
           positions if they both want to be in each others' spots
-        - arrived: When True, coworker will use target/resolve job.  Needed for when target does not block
         """
         # Standard Move action.  GameInstance will be notified
-        if (not dest_tile.blocked or swapping) and not arrived:
+        if (not dest_tile.blocked or swapping):
             self.game.remove_tile_content(self)
             self.x = dest_tile.x
             self.y = dest_tile.y
@@ -264,21 +274,45 @@ class Mob(BaseObject):
                 self.path.pop(0)
             except IndexError:
                 pass
-
-        # Reached end of path or was player directed.
-        # Will now use target object/resolve request
         else:
+            # AI Shouldn't path to places it can't go so shouldn't need player check here, but this is for player
+            # "bump" actions
             # Assumes one usable object per tile
             appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
             if appliances:
-                self.use_item(appliances[0])
+                selected_obj = appliances[0]
+                options = self.action_center.available_actions(selected_obj)
+                self.target = selected_obj
+                self.game.init_popup(
+                    f"{selected_obj.name} options", options=options, popup_func=self.perform_action
+                )
 
-    def use_item(self, item):
+    def perform_action(self, player_action=None):
         ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
-        item.use(self)
+        # If the target can be used, lets do it
+        # Otherwise, lose it and something new will be chosen
+        self.target_action = player_action or self.target_action
+        if self.target.use(self):
+            self.game.log_action(player_action or self.target_action)
+            self.target_action.init_action()
+
+        if player_action:
+            self.game.cursor = None
+            self.game.popup_open = False
+
+    def use(self, user):
+        can_use = False
+        if self.occupied:
+            print(f"{self.name}: {self.x},{self.y} is currently occupied")
+            user.broken_target()
+        else:
+            can_use = True
+        return can_use
 
     def pickup_item(self, item):
+        """ Called whenever a coworker picks up and item & by vendor when dispensing goods """
         self.inventory.append(item)
+        self.memories.remove_wanted(item)
         item.holder = self
         self.game.remove_tile_content(item)
 

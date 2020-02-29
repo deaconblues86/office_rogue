@@ -1,5 +1,6 @@
 {
     "cleaning": {
+        "name": "cleaning",
         "chars": ["&", "$", "o", "*"],
         "color": "white",
         "duration": 4,
@@ -14,6 +15,7 @@
         ]
     },
     "cleaning_up": {
+        "name": "cleaning_up",
         "chars": ["&", "$", "o", "*"],
         "color": "white",
         "duration": 4,
@@ -28,6 +30,7 @@
         ]
     },
     "repairing": {
+        "name": "repairing",
         "chars": ["^", "}", "{", "<", ">"],
         "color": "grey",
         "duration": 4,
@@ -42,6 +45,7 @@
         ]
     },
     "servicing_terminal": {
+        "name": "servicing_terminal",
         "chars": ["^", "}", "{", "<", ">"],
         "color": "light_blue",
         "duration": 4,
@@ -58,6 +62,7 @@
         ]
     },
     "chatting": {
+        "name": "chatting",
         "chars": ["!", "$", "#", "%"],
         "color": "yellow",
         "duration": 4,
@@ -70,6 +75,7 @@
         ]
     },
     "surfing": {
+        "name": "surfing",
         "chars": ["1", "0", "-", "|"],
         "color": "green",
         "duration": 6,
@@ -83,6 +89,7 @@
         ]
     },
     "pooing": {
+        "name": "pooing",
         "chars": ["P", "O", "~"],
         "color": "light_sepia",
         "duration": 4,
@@ -96,7 +103,8 @@
             {"hits": "target", "stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
         ]
     },
-    "peeing": {
+    "peeing_in_toilet": {
+        "name": "peeing_in_toilet",
         "chars": ["*", ":"],
         "color": "light_yellow",
         "duration": 2,
@@ -111,7 +119,24 @@
             {"hits": "target", "stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
         ]
     },
+    "peeing_in_urinal": {
+        "name": "peeing_in_toilet",
+        "chars": ["*", ":"],
+        "color": "light_yellow",
+        "duration": 2,
+        "satisfies": ["bladder"],
+        "requires": {
+            "target": "Urinal",
+            "note": "This is kind of an OR situation between Toilet and Urinal"
+        },
+        "effects": [
+            {"hits": "actor", "stat": "bladder", "new_value": 100},
+            {"hits": "target", "stat": "durability", "exec": "ret = randint(5, 10) * -1"},
+            {"hits": "target", "stat": "cleanliness", "exec": "ret = randint(5, 10) * -1"}
+        ]
+    },
     "making_coffee": {
+        "name": "making_coffee",
         "chars": ["o", ".", "p"],
         "color": "dark_sepia",
         "duration": 2,
@@ -128,6 +153,7 @@
         ]
     },
     "restocking": {
+        "name": "restocking",
         "chars": ["!", "^"],
         "color": "light_orange",
         "duration": 2,
@@ -142,6 +168,7 @@
         ]
     },
     "vending": {
+        "name": "vending",
         "chars": ["$"],
         "color": "light_green",
         "duration": 1,
@@ -155,6 +182,7 @@
         ]
     },
     "drinking_water_bottle": {
+        "name": "drinking_water_bottle",
         "chars": ["o", ".", "d"],
         "color": "light_blue",
         "duration": 1,
@@ -171,6 +199,7 @@
         ]
     },
     "eating_snack": {
+        "name": "eating_snack",
         "chars": ["x", "*", "!"],
         "color": "orange",
         "duration": 1,
@@ -187,6 +216,7 @@
         ]
     },
     "computing": {
+        "name": "computing",
         "chars": ["1", "2", "3", "A", "B", "C"],
         "color": "light_green",
         "duration": 8,
@@ -201,6 +231,7 @@
        ]
     },
     "writing_report": {
+        "name": "writing_report",
         "chars": ["A", "B", "C", "!", "."],
         "color": "grey",
         "duration": 8,
@@ -216,6 +247,7 @@
         ]
     },
     "call_over": {
+        "name": "call_over",
         "chars": ["!", "?"],
         "color": "white",
         "duration": 1,

@@ -182,11 +182,12 @@ class Renderer():
 
         y = 2
         for task in self.game.work_requests:
-            self.root_console.print(x=x, y=y, string=task.name)
-            self.root_console.print(x=x, y=y+1, string=f" Asn: {getattr(task.assignee, 'name', '')}")
-            self.root_console.print(x=x, y=y+2, string=f" Trg: {task.target.name}")
-            self.root_console.print(x=x, y=y+3, string=f" Loc: {task.target.x}, {task.target.y}")
-            y += 4
+            objs = self.game.work_requests[task]
+            for obj in objs:
+                self.root_console.print(x=x, y=y, string=task)
+                self.root_console.print(x=x, y=y+2, string=f" Trg: {obj.name}")
+                self.root_console.print(x=x, y=y+3, string=f" Loc: {obj.x}, {obj.y}")
+                y += 4
 
     def clear(self):
         self.root_console.clear(bg=self.bg_color)

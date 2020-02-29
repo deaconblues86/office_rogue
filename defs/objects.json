@@ -6,6 +6,7 @@
         "blocks": true,
         "satisfies": [],
         "obj_type": "appliance",
+        "tags": ["vendor", "appliance"],
         "triggers": {
             "empty": {"request": "restocking"}
         }
@@ -181,6 +182,7 @@
         "color": "light_blue",
         "satisfies": ["thirst"],
         "obj_type": "item",
+        "tags": ["consumable"],
         "triggers": {
             "broken": {"become": "Trash"}
         }
@@ -191,6 +193,7 @@
         "color": "light_green",
         "satisfies": ["hunger"],
         "obj_type": "item",
+        "tags": ["consumable"],
         "triggers": {
             "broken": {"become": "Trash"}
         }
@@ -200,7 +203,8 @@
         "char": "[",
         "color": "light_orange",
         "satisfies": ["mood"],
-        "obj_type": "item"
+        "obj_type": "item",
+        "tags": ["electronic"]
     },
     "Urine": {
         "name": "Urine",
@@ -208,7 +212,8 @@
         "color": "light_yellow",
         "satisfies": ["clean"],
         "emits": ["Grossed Out"],
-        "obj_type": "item"
+        "obj_type": "item",
+        "tags": ["liquid", "garbage"]
     },
     "Poo": {
         "name": "Poo",
@@ -216,7 +221,8 @@
         "color": "light_sepia",
         "satisfies": ["clean"],
         "emits": ["Grossed Out"],
-        "obj_type": "item"
+        "obj_type": "item",
+        "tags": ["garbage"]
     },
     "Trash": {
         "name": "Trash",
@@ -224,7 +230,8 @@
         "color": "light_red",
         "satisfies": ["clean"],
         "emits": "Grossed Out",
-        "obj_type": "item"
+        "obj_type": "item",
+        "tags": ["garbage"]
     },
     "Coworker": {
         "name": "Coworker",

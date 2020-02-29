@@ -1,5 +1,7 @@
 {
     "note": {
+        "stat": "note",
+        "value": 0,
         "comment": "while this is technically configurable, all of these stats are hidden away in the source code",
         "more": "That's probably fine for stuff we'd always want, but need to be able to add new attr to items for expandability",
         "specific":  "Currently have on_create & on_drop as triggers...  might be worth having these special sort of 'states' around, however all",
