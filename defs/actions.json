@@ -154,13 +154,15 @@
             {"hits": "target", "func": "use"}
         ]
     },
-    "drinking_water": {
+    "drinking_water_bottle": {
         "chars": ["o", ".", "d"],
         "color": "light_blue",
         "duration": 1,
         "satisfies": ["thirst"],
         "requires": {
-            "target": "Water Bottle"
+            "reagents": [
+                {"name": "Water Bottle"}
+            ]
         },
         "effects": [
             {"hits": "actor", "stat": "thirst", "modifier": 50},
@@ -168,13 +170,15 @@
             {"hits": "target", "stat": "durability", "modifier": -50}
         ]
     },
-    "snacking": {
+    "eating_snack": {
         "chars": ["x", "*", "!"],
         "color": "orange",
         "duration": 1,
         "satisfies": ["hunger"],
         "requires": {
-            "target": "Snack"
+            "reagents": [
+                {"name": "Snack"}
+            ]
         },
         "effects": [
             {"hits": "actor", "stat": "hunger", "modifier": 50},
@@ -203,7 +207,9 @@
         "produces": ["report"],
         "requires": {
             "target": "Desk",
-            "reagents": ["Paper"]
+            "reagents": [
+                {"name": "Paper"}
+            ]
         },
         "effects": [
             {"hits": "Paper", "func": "destroy"}

@@ -1,5 +1,6 @@
 from base.enums import ObjType
 from constants import colors, game_objects
+from utils import eval_obj_state
 
 
 def attrFormatter(attrs, obj, override={}, base=False):
@@ -51,11 +52,7 @@ class BaseObject():
         self.cleanliness = 100
         self.state = ""
 
-        self.emits = kwargs.get("emits")
-        self.on_create = kwargs.get("on_create")
-        self.on_destroy = kwargs.get("on_destroy")
-        self.on_broken = kwargs.get("on_broken")
-        self.on_dirty = kwargs.get("on_dirty")
+        self.triggers = kwargs.get("triggers", [])
 
     def adjacent(self):
         # Asks GameInstance 'What's Next to Me?
@@ -73,16 +70,24 @@ class BaseObject():
             self._action()
             return None
 
-        self.game.submit_actions(actions, user, self)
+        self.game.log_actions(actions, user, self)
 
     def _action(self):
         self.broadcast(f"{self.name.capitalize()} has no use!", "red")
 
-    def eval_events(self):
-        if self.durability <= 0:
-            self.game.submit_event(self, self.on_broken)
-        if self.cleanliness <= 0:
-            self.game.submit_event(self, self.on_dirty)
+    def eval_triggers(self):
+        triggered = []
+        for trigger in self.triggers:
+            if eval_obj_state(self, trigger):
+                triggered.append(self.triggers[trigger])
+
+        for trigger in triggered:
+            if trigger.get("request"):
+                self.log_request(self, trigger["request"])
+            if trigger.get("become"):
+                self.transform_object(self, trigger["become"])
+            if trigger.get("emits"):
+                self.log_emitter(self, trigger["emits"])
 
     def broadcast(self, message, color="white"):
         """ Publishes call backs from objects to game """
@@ -98,10 +103,12 @@ class Item(BaseObject):
         super().__init__(*args, **kwargs)
         self.satisfies = satisfies
         self.actions = actions
+
+        # Note that owner & holder are not always the same
+        # Holder: always current possessor
+        # Owner: person who purchased item or hodl item as it was transformed (for whatever reason)
         self.owner = owner
         self.holder = None
-
-        self.on_drop = kwargs.get("on_drop")
 
     def use(self, user):
         if self.owner and self.owner is not user:
@@ -114,18 +121,6 @@ class Item(BaseObject):
             user.broken_target(self)
         else:
             self.init_actions(user, self.actions)
-
-    def move_to_inventory(self, holder):
-        holder.inventory.append(self)
-        self.holder = holder
-        self.game.remove_tile_content(self)
-
-    def drop_from_inventory(self, holder):
-        holder.inventory = list(filter(lambda x: x is not self, holder.inventory))
-        self.x, self.y = holder.x, holder.y
-        self.game.add_tile_content(self)
-        self.holder = None
-        self.game.submit_event(self, self.on_drop)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
@@ -147,7 +142,6 @@ class Vendor(BaseObject):
         self.actions = actions
         self.owner = owner
         self.inventory = []
-        self.on_no_stock = kwargs.get("on_no_stock")
 
         self.restock_items()
 
@@ -195,11 +189,8 @@ class Vendor(BaseObject):
 
         self.inventory = list(filter(lambda x: x is not item, self.inventory))
         item.owner = user
-        item.move_to_inventory(user)
+        user.pickup_item(item)
         user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
-
-        if not self.inventory:
-            self.game.submit_event(self, self.on_no_stock)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """

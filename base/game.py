@@ -1,17 +1,18 @@
 import random
+from collections import defaultdict
 
 from tcod.event import EventDispatch
 from base.enums import ObjType
 from base.items import BaseObject, Item, Vendor
-from base.thoughts import WorkRequest, Action
+from base.thoughts import Action
 from base.coworker import Mob
+from utils import search_by_obj, search_by_tag
 from constants import (
     female_names,
     male_names,
     game_objects,
     game_jobs,
     game_auras,
-    work_requests,
     game_actions,
     colors
 )
@@ -104,7 +105,7 @@ class GameInstance():
         }
         self.actions = []
         self.emitters = []
-        self.work_requests = []
+        self.work_requests = defaultdict(list)
 
         self.game_msgs = []
         self.turns = 0
@@ -119,7 +120,6 @@ class GameInstance():
     def run_coworkers(self):
         if not self.popup_open:
             self.turns += 1
-            self.assign_requests()
             for action in self.actions:
                 action.tick_action()
 
@@ -130,43 +130,24 @@ class GameInstance():
                     continue
                 worker.take_turn()
 
-    def assign_requests(self):
-        unassigned = filter(lambda x: x.assignee is None, self.work_requests)
-        for job in unassigned:
-            candidates = sorted(
-                filter(lambda x: x.job == job.job, self.world_objs[ObjType.mob]), key=lambda x: len(x.get_tasks())
-            )
-            for c in candidates:
-                c.add_task(job)
-                break
-            else:
-                print(f"No candidate found for {job.name} of {job.target.name}")
+    def find_tasks(self, action_name):
+        return self.work_requests[action_name]
 
-    def complete_request(self, job):
-        self.work_requests = [x for x in self.work_requests if x is not job]
-        del job
-
-    def find_need(self, need):
-        satisfies = []
+    def find_objs(self, obj_name, obj_state=None):
+        requested = []
         for obj_type in [ObjType.appliance, ObjType.vendor, ObjType.item]:
-            for obj in self.world_objs[obj_type]:
-                if need in obj.satisfies:
-                    satisfies.append(obj)
+            requested += search_by_obj(self.world_objs[obj_type], obj_name, obj_state)
+        return requested
 
-        return satisfies
+    def find_tags(self, obj_tag, obj_state=None):
+        requested = []
+        for obj_type in [ObjType.appliance, ObjType.vendor, ObjType.item]:
+            requested += search_by_tag(self.world_objs[obj_type], obj_tag, obj_state)
+        return requested
 
     def find_path(self, seeker, target):
         # Routes path requests of Workers to MapGenerator
         return self.game_map.find_path(seeker, target)
-
-    def player_move_or_use(self, mod_x, mod_y):
-        if self.player.occupied:
-            return None
-
-        dest_x = self.player.x + mod_x
-        dest_y = self.player.y + mod_y
-        dest_tile = self.get_tile(dest_x, dest_y)
-        self.player.move(dest_tile)
 
     def get_tile(self, req_x, req_y):
         return self.game_map.get_tile(req_x, req_y)
@@ -185,14 +166,6 @@ class GameInstance():
         self.game_map.remove_object(obj)
         self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 
-    def delete_object(self, obj, holder=None):
-        if holder:
-            obj.drop_from_inventory(holder)
-
-        self.remove_tile_content(obj)
-        self.submit_event(obj, getattr(obj, "on_destroy", {}))
-        del obj
-
     def create_object(self, x, y, obj_params, holder=None):
         obj_params.update({"game": self, "x": x, "y": y})
 
@@ -208,7 +181,8 @@ class GameInstance():
             obj = Mob(**obj_params)
 
         if holder:
-            obj.move_to_inventory(holder)
+            obj.owner = holder
+            holder.pickup_item(obj)
 
         else:
             self.submit_event(obj, getattr(obj, "on_create", {}))
@@ -216,7 +190,23 @@ class GameInstance():
 
         return obj
 
-    def submit_actions(self, actions, actor, target):
+    def transform_object(self, obj, new):
+        new = game_objects.get(new)
+        if new:
+            self.create_object(obj.x, obj.y, new, holder=obj.holder)
+            self.delete_object(obj, holder=obj.holder)
+        else:
+            print(f"New object not found: {new}")
+
+    def delete_object(self, obj, holder=None):
+        if holder:
+            holder.drop_item(obj)
+
+        self.remove_tile_content(obj)
+        self.submit_event(obj, getattr(obj, "on_destroy", {}))
+        del obj
+
+    def log_actions(self, actions, actor, target):
         for action in actions:
             action_obj = game_actions.get(action, None)
             if not action_obj:
@@ -231,37 +221,16 @@ class GameInstance():
         del self.renderer.action_cache[action]
         del action
 
-    def submit_event(self, obj, event):
-        if not event:
-            return None
-
-        if event.get("request"):
-            self.log_request(obj, event["request"])
-        if event.get("become"):
-            self.transform_object(obj, event["become"])
-        if event.get("emits"):
-            self.log_emitter(obj, event["emits"])
-
-    def log_request(self, obj, request):
+    def log_request(self, obj, request_action):
         '''
         Logs unique requests (based on obj & request type) to be performed
         '''
-        job_request = work_requests.get(request)
-        if job_request:
-            job_request.update({"game": self, "target": obj})
-            if (job_request["name"], job_request["target"]) in ((x.name, x.target) for x in self.work_requests):
-                return None
+        if obj not in self.work_requests[request_action]:
+            self.work_requests[request_action].append(obj)
 
-            job = WorkRequest(**job_request)
-            self.work_requests.append(job)
-
-    def transform_object(self, obj, new):
-        new = game_objects.get(new)
-        if new:
-            self.create_object(obj.x, obj.y, new, holder=obj.holder)
-            self.delete_object(obj, holder=obj.holder)
-        else:
-            print(f"New object not found: {new}")
+    def complete_request(self, job):
+        self.work_requests = [x for x in self.work_requests if x is not job]
+        del job
 
     def log_emitter(self, obj, thought):
         # TODO: Implement emitted auras
@@ -306,6 +275,15 @@ class GameInstance():
 
         coworker = self.create_object(x, y, params)
         return coworker
+
+    def player_move_or_use(self, mod_x, mod_y):
+        if self.player.occupied:
+            return None
+
+        dest_x = self.player.x + mod_x
+        dest_y = self.player.y + mod_y
+        dest_tile = self.get_tile(dest_x, dest_y)
+        self.player.move(dest_tile)
 
     # Sets up key_bindings
     def handle_keys(self, event):

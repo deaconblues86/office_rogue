@@ -1,27 +1,6 @@
 from random import randint
 from constants import game_actions, game_objs, actions_by_need
-
-
-# This is being trashed - at least in its current implementation
-# class WorkRequest():
-#     def __init__(self, game, name, job, target, actions, target_func=None):
-#         self.game = game
-#         self.name = name
-#         self.job = job
-#         self.target = target
-#         self.actions = actions
-#         self.target_func = target_func
-
-#         self.assignee = None
-
-#     def init_request(self, user):
-#         self.game.submit_actions(self.actions, user, self)
-
-#     def resolve_request(self):
-#         if self.target_func:
-#             req_method = getattr(self.target, self.target_func)
-#             req_method()
-#         self.assignee.remove_task()
+from utils import search_by_obj, search_by_tag
 
 
 class Action():
@@ -40,13 +19,19 @@ class Action():
         # Initializing Action requirements
         self.actor_job = requires.get("job", None)              # Required Job to peform actions
         self.req_task = requires.get("target_task", False)      # Target will raise it's own alarm OR
+
         self.req_object = requires.get("target", None)          # Target is specified by object name OR
-        self.req_tags = requires.get("target_tag", None)        # Target is specified by generalized object tag
+        self.req_tag = requires.get("target_tag", None)         # Target is specified by generalized object tag
+        self.req_workstation = self.req_object or self.req_tag  # Normalized Required Taggbet
+
         self.req_state = requires.get("target_state", None)     # Target requires a certain state
-        self.req_reagents = requires.get("reagents", [])
+
+        self.req_reagents = requires.get("reagents", {})
 
         # Handling producing actions
-        # Will load a dict of Vendors by name as well as what they stock
+        # Will load a dict of Vendors by name as well as what they stock if simple "vending" action
+        # Difference being, some actions only make things & some only buy things
+        # In either case, it doesn't yield anything on its own (satisifies)
         self.produces = produces
         if self.produces and not isinstance(self.produces, list):
             self.producers = {x.name: x.stock for x in game_objs if x.stock}
@@ -62,8 +47,35 @@ class Action():
         # a blocking status.  Or maybe blocking not necessary since time stacks as it does prior to resolution
         self.actor.occupied += duration
 
-    def find_target(self):
-        pass
+    def find_targets(self):
+        targets = []
+        if self.req_task:
+            targets = self.actor.game.find_tasks(self.name)
+        elif self.req_object:
+            targets = self.actor.game.find_objs(self.req_object, self.req_state)
+        else:
+            targets = self.actor.game.find_tags(self.req_tag, self.req_state)
+
+        return targets
+
+    def missing_reagents(self):
+        missing = []
+        if self.req_reagents:
+            missing = []
+            missing += list(
+                map(
+                    lambda x: search_by_obj(self.actor.inventory, x["name"], x.get("state")),
+                    [x for x in self.req_reagents if x.get("name")]
+                )
+            )
+            missing += list(
+                map(
+                    lambda x: search_by_tag(self.actor.inventory, x["tag"], x.get("state")),
+                    [x for x in self.req_reagents if x.get("tag")]
+                )
+            )
+
+        return missing
 
     def tick_action(self):
         self.actor.occupied -= 1
@@ -75,7 +87,7 @@ class Action():
             self.apply_effect(effect)
 
         self.target.occupied_by = None
-        self.target.eval_events()
+        self.target.eval_triggers()
         self.actor.finished_action(self)
 
     def apply_effect(self, effect):
@@ -116,14 +128,113 @@ class Action():
 class ActionCenter():
     def __init__(self, mob):
         self.mob = mob
-        self.potential_actions = list(
-            filter(lambda x: x.get("job", None) is None or x.get("job", None) == mob.job, game_actions)
+        # Initilizes Actions based on mob's job
+        self.actions = filter(lambda x: not x.get("job", None) or x.get("job", None) == mob.job, game_actions)
+        self.actions = list(
+            map(lambda x: Action(actor=self.mob, **x), self.actions)
         )
-        self.true_up_available()
 
-    def true_up_available(self):
-        # Reassess what can be done as new items added to inventory
-        pass
+    def find_need(self, need):
+        """
+        How deep can this really go?  Huge production chains of course lead to evaluations within evaluations, but
+        is this that really a concern or what we want?
+         - The initial impetus of this rougelike was to set up a functional office of sorts, now, with larger goals, we're thinking villages within a world
+         - In either case, I would expected a certain amount of separation of duties... Not one guy mining stone, smelting ore it, forging it, etc
+           - goods that can't be sourced locally should be requested from traders who look beyond borders
+           - also need to ability to train people for missing jobs/create missing workstations
+         - The player can certainly do all that, and that's fine, they have a brain.
+         - If we assume a certain amount of specialization, which would be better ultimately I feel, then we need a way to manage requests of materials as well
+            - "no food at the granary sire"
+         - already have plans for a "manager" class whose sole job it is to post requests for items & generally direct workers
+        """
+        possible_actions = []
+        target_action = None
+        target = None
+        # Starting from actions that satisfy need (lowest level)
+        for action in filter(lambda x: need in x.satisfies, self.actions):
+            missing_reagents = action.missing_reagents()
+
+            # If the action requires no external device & we possess what's required, do it
+            if not action.req_workstation and not missing_reagents:
+                target_action = action
+                break
+
+            # If we need a workstation & have everything, do it
+            target = self.determine_closest(action.find_targets())
+            if target and not missing_reagents:
+                target_action = action
+                break
+
+            possible_actions.append((action, missing_reagents))
+        else:
+            target_action, target = self.eval_action_options(possible_actions)
+
+        if target_action:
+            self.init_action(target_action, target)
+        else:
+            print(f"{self.name} can't satisfy {self.satisfying}")
+
+    def eval_action_options(possibilites):
+        """
+        This is where we need to dive through the action tree to figure out the most efficient regardless of all the notes above...
+        Let's consider hunting...
+        - needs bolts/arrows & needs crossbow/bow
+        - OR needs traps & checks traps
+            - Traps are easy enough => place traps satsifies work & checks traps satisfies work
+                - intresting though, check should take priority & once done, then place
+                - place traps would require traps...  reagent check would prioritize check
+        - Assuming "hunters" start with req. gear, really only the ammo that matters
+        - "Purchase" would be one action
+        - "Make" is several (harvet_wood, harvest_stone/(harvest_iron_ore & smelt_iron), make_arrowheads)
+        - Think it's safe to, regardless of action, it's always about missing reagents...
+            - Maybe "flatten" all missing reagents (going back to "Make"):
+                - actions = what gives wood + what gives stone/what gives iron => what gives iron_ore + make_arrowheads
+                - at every step, some of these goods could be purchasable
+        """
+        for possible in possibilites:
+            action, missing = possibilites
+
+            still_req = []
+            for x in missing:
+                i
+
+
+
+
+    def determine_closest(self, targets):
+        """
+        Determines closest target from list that could satisfy needs and isn't occupied.
+        - Pathing in GameInstance can reject blocked targets as well if the situation changes
+        - determine_closest only called when no target is held or when it was bad
+        """
+        min_distance = 99999
+        closest = None
+        targets = filter(lambda x: not x.owner or x.owner is self, targets)
+        for target in targets:
+            # If target currently in use, skip it
+            if target.occupied_by:
+                print(f"{target.name}: {target.x},{target.y} occupied by {target.occupied_by.name}")
+                continue
+
+            # If target is known to be broken, skip it
+            if target in self.mob.memories.broken_items:
+                continue
+
+            # TODO: Dropped as the crow flies eval for actual path.  Depending on Cost, may have to redo
+            path = self.mob.game.calculate_target_path()
+            if not path:
+                print(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
+                self.broken_target(self.target)
+
+            if len(path) < min_distance:
+                min_distance = len(path)
+                closest = target
+
+        return closest
+
+    def broken_target(self, obj):
+        # Marks target as broken in memory
+        self.mob.memories.add_broken(obj)
 
 
 class Thought():

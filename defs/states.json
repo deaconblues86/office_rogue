@@ -7,5 +7,5 @@
     },
     "dirty": {"stat": "cleanliness", "value": 0},
     "broken": {"stat": "durability", "value": 0},
-    "empty": {"state": "inventory", "value": 0}
+    "empty": {"stat": "inventory", "value": 0}
 }

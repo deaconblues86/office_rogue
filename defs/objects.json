@@ -8,9 +8,6 @@
         "obj_type": "appliance",
         "triggers": {
             "empty": {"request": "restocking"}
-        },
-        "on_no_stock": {
-            "request": "Restock"
         }
     },
     "=": {
@@ -27,21 +24,14 @@
         "satisfies": ["hunger", "thirst"],
         "blocks": true,
         "obj_type": "vendor",
-        "tags": ["vendor"],
         "stock": [
             {"name": "Water Bottle", "max_stock": 4},
             {"name": "Snack", "max_stock": 4}
         ],
-        "tags": ["appliance"],
+        "tags": ["vendor", "appliance"],
         "triggers": {
             "broken": {"request": "repairing"},
             "empty": {"request": "restocking"}
-        },
-        "on_broken": {
-            "request": "Repair"
-        },
-        "on_no_stock": {
-            "request": "Restock"
         }
     },
     "C": {
@@ -55,9 +45,6 @@
         "tags": ["appliance"],
         "triggers": {
             "broken": {"request": "repairing"}
-        },
-        "on_broken": {
-            "request": "Repair"
         }
     },
     "F": {
@@ -74,13 +61,6 @@
                 "emits": "Grossed Out",
                 "request": "cleaning"
             }
-        },
-        "on_broken": {
-            "request": "Repair"
-        },
-        "on_dirty": {
-            "emits": "Grossed Out",
-            "request": "Clean"
         }
     },
     "M": {
@@ -97,13 +77,6 @@
                 "emits": "Grossed Out",
                 "request": "cleaning"
             }
-        },
-        "on_broken": {
-            "request": "Repair"
-        },
-        "on_dirty": {
-            "emits": "Grossed Out",
-            "request": "Clean"
         }
     },
     "t": {
@@ -113,10 +86,7 @@
         "satisfies": ["work"],
         "blocks": true,
         "obj_type": "appliance",
-        "tags": ["electronic"],
-        "on_broken": {
-            "request": "Service"
-        }
+        "tags": ["electronic"]
     },
     "U": {
         "name": "Urinal",
@@ -132,13 +102,6 @@
                 "emits": "Grossed Out",
                 "request": "cleaning"
             }
-        },
-        "on_broken": {
-            "request": "Repair"
-        },
-        "on_dirty": {
-            "emits": "Grossed Out",
-            "request": "Clean"
         }
     },
     "H": {
@@ -155,13 +118,6 @@
                 "emits": "Grossed Out",
                 "request": "cleaning"
             }
-        },
-        "on_broken": {
-            "request": "Repair"
-        },
-        "on_dirty": {
-            "emits": "Grossed Out",
-            "request": "Clean"
         }
     },
     "T": {
@@ -178,13 +134,6 @@
                 "emits": "Grossed Out",
                 "request": "cleaning"
             }
-        },
-        "on_broken": {
-            "request": "Repair"
-        },
-        "on_dirty": {
-            "emits": "Grossed Out",
-            "request": "Clean"
         }
     },
     "x": {
@@ -234,9 +183,6 @@
         "obj_type": "item",
         "triggers": {
             "broken": {"become": "Trash"}
-        },
-        "on_broken": {
-            "become": "Trash"
         }
     },
     "Snack": {
@@ -247,9 +193,6 @@
         "obj_type": "item",
         "triggers": {
             "broken": {"become": "Trash"}
-        },
-        "on_broken": {
-            "become": "Trash"
         }
     },
     "Cellphone": {
@@ -265,10 +208,7 @@
         "color": "light_yellow",
         "satisfies": ["clean"],
         "emits": ["Grossed Out"],
-        "obj_type": "item",
-        "on_create": {
-            "request": "Clean Up"
-        }
+        "obj_type": "item"
     },
     "Poo": {
         "name": "Poo",
@@ -276,10 +216,7 @@
         "color": "light_sepia",
         "satisfies": ["clean"],
         "emits": ["Grossed Out"],
-        "obj_type": "item",
-        "on_create": {
-            "request": "Clean Up"
-        }
+        "obj_type": "item"
     },
     "Trash": {
         "name": "Trash",
@@ -287,11 +224,7 @@
         "color": "light_red",
         "satisfies": ["clean"],
         "emits": "Grossed Out",
-        "obj_type": "item",
-        "on_drop": {
-            "request": "Clean Up",
-            "note": "Trash this ASAP"
-        }
+        "obj_type": "item"
     },
     "Coworker": {
         "name": "Coworker",

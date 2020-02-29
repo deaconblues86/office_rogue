@@ -37,7 +37,6 @@ class Mob(BaseObject):
         # - waiting: Allows coworker to wait, for a time, while their path clears
         # - memories: Stores experiances of the coworker
         self.target = None
-        self.target_job = None
         self.satisfying = None
         self.occupying = None
         self.waiting = 0
@@ -94,63 +93,11 @@ class Mob(BaseObject):
         job.assignee = self
         self.memories.work_tasks.append(job)
 
-    def remove_task(self):
-        # Removes job from Memories, notifies GameInstance, and resets target_job.  Called by WorkRequest
-        # when resolving request.
-        self.broadcast(f"{self.name} completed {self.target_job.name} of {self.target_job.target.name}", "yellow")
-        self.memories.finish_job(self.target_job)
-        self.game.complete_request(self.target_job)
-        self.target_job = None
-
     def finished_action(self, action):
         # Notifies GameInstance that action was completed and resets target.  Called by Action object
         self.broadcast(f"{self.name} Finished {action.name}", action.color)
         self.game.complete_action(action)
         self.target = None
-
-    def broken_target(self, obj):
-        # Marks target as broken in memory and clears target
-        self.memories.add_broken(obj)
-        self.target = None
-
-    def determine_closest(self, targets):
-        """
-        Determines closest target from list that could satisfy needs and isn't occupied.
-        - Pathing in GameInstance can reject blocked targets as well if the situation changes
-        - determine_closest only called when no target is held or when it was bad
-        """
-        min_distance = None
-        closest = None
-        targets = filter(lambda x: not x.owner or x.owner is self, targets)
-        for target in targets:
-            # If target currently in use, skip it
-            if target.occupied_by:
-                print(f"{target.name}: {target.x},{target.y} occupied by {target.occupied_by.name}")
-                continue
-
-            # If target is known to be broken, skip it
-            if target in self.memories.broken_items:
-                continue
-
-            dx = target.x - self.x
-            dy = target.y - self.y
-            distance = math.sqrt(dx**2 + dy**2)
-            if min_distance is None or distance < min_distance:
-                min_distance = distance
-                closest = target
-
-        return closest
-
-    def calculate_target_path(self):
-        """
-        Asks GameInstance for path to target. If target now blocked, nothing will be returned.
-        If its a bum target, add to memories as broken for now
-        """
-        self.path = self.game.find_path(self, self.target)
-        if not self.path:
-            print(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
-            self.broken_target(self.target)
-            self.target = None
 
     def check_needs(self):
         """
@@ -183,7 +130,6 @@ class Mob(BaseObject):
             if self.satisfying == "work" and self.get_tasks():
                 task = self.get_tasks()[0]
                 self.target = task.target
-                self.target_job = task
             else:
                 targets = self.game.find_need(self.satisfying)
                 self.target = self.determine_closest(targets)
@@ -322,23 +268,25 @@ class Mob(BaseObject):
         # Reached end of path or was player directed.
         # Will now use target object/resolve request
         else:
-            if self.target_job:
-                self.target_job.init_request(self)
-            else:
-                # Assumes one usable object per tile
-                appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
-                if appliances:
-                    self.use_item(appliances[0])
+            # Assumes one usable object per tile
+            appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
+            if appliances:
+                self.use_item(appliances[0])
 
     def use_item(self, item):
         ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
         item.use(self)
 
     def pickup_item(self, item):
-        item.move_to_inventory(self)
+        self.inventory.append(item)
+        item.holder = self
+        self.game.remove_tile_content(item)
 
     def drop_item(self, item):
-        item.drop_from_inventory(self)
+        self.inventory = list(filter(lambda x: x is not item, self.inventory))
+        item.x, item.y = self.x, self.y
+        item.holder = None
+        self.game.add_tile_content(item)
 
     def inventory_full(self):
         return len(self.inventory) == self.max_inventory
