@@ -96,10 +96,14 @@ class Mob(BaseObject):
         self.memories.add_broken(broken_obj)
         self.target = None
 
+    def wants_item(self, obj):
+        return obj.name in self.memories.wanted_items
+
     def finished_action(self, action):
         # Notifies GameInstance that action was completed and resets target.  Called by Action object
         self.broadcast(f"{self.name} Finished {action.name}", action.color)
         self.game.complete_action(action)
+        self.game.complete_request(action, self.target)
         self.target = None
         self.target_action = None
 
@@ -134,24 +138,22 @@ class Mob(BaseObject):
                 print(f"{self.name} can't find a target to perform {self.target_action.name}")
                 return
 
-            self.calculate_target_path()
+            # Don't really need a path for self
+            if self.target is self:
+                return
+
+            self.path = self.calculate_target_path(self.target)
+            if not self.path:
+                print(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
 
     def calculate_target_path(self, target_obj=None):
         """
         Asks GameInstance for path to target. If target now blocked, nothing will be returned.
-        - If our target is use, we need to path
-        - If its a bum target, add to memories as broken for now
         """
-        if self.target is self:
-            self.path = []
-        else:
-            path_target = target_obj or self.target
-            self.path = self.game.find_path(self, path_target)
-            if not self.path:
-                print(f"{self.name} can't path to {path_target.name} {path_target.x}, {path_target.y}")
-                self.broken_target(path_target)
+        path_target = target_obj or self.target
+        path = self.game.find_path(self, path_target)
 
-        return self.path
+        return path
 
     def tick_needs(self):
         """
@@ -251,9 +253,7 @@ class Mob(BaseObject):
             self.waiting += 1
             if self.waiting == 4:
                 print(f"{self.name} is recalcing path...")
-                self.calculate_target_path()
-            else:
-                print(f"{self.name} is waiting...")
+                self.path = self.calculate_target_path()
 
     def move(self, dest_tile, swapping=False):
         """
@@ -312,7 +312,7 @@ class Mob(BaseObject):
     def pickup_item(self, item):
         """ Called whenever a coworker picks up and item & by vendor when dispensing goods """
         self.inventory.append(item)
-        self.memories.remove_wanted(item)
+        self.memories.remove_wanted(item.name)
         item.holder = self
         self.game.remove_tile_content(item)
 
@@ -350,5 +350,8 @@ class Mob(BaseObject):
         attrs += ["target", "satisfying", "job", "occupied"]
         inv = [x.name for x in self.inventory]
         broken = [x.name for x in self.memories.broken_items]
-        tasks = [f"{x.name}: {x.target.name}" for x in self.get_tasks()]
-        return details + attrFormatter(attrs, self, override={"broken": broken, "tasks": tasks, "inventory": inv})
+        tasks = [x.name for x in self.get_tasks()]
+        wants = self.memories.wanted_items
+        return details + attrFormatter(
+            attrs, self, override={"broken": broken, "tasks": tasks, "inventory": inv, "wants": wants}
+        )

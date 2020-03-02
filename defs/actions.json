@@ -7,7 +7,7 @@
         "satisfies": ["work"],
         "requires": {
             "job": "housekeeping",
-            "target_state": "dirty"
+            "target_task": true
         },
         "effects": [
             {"hits": "target", "stat": "cleanliness", "new_value": 100},

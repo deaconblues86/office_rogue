@@ -74,11 +74,11 @@ class BaseObject():
 
         for trigger in triggered:
             if trigger.get("request"):
-                self.log_request(self, trigger["request"])
+                self.game.log_request(self, trigger["request"])
             if trigger.get("become"):
-                self.transform_object(self, trigger["become"])
+                self.game.transform_object(self, trigger["become"])
             if trigger.get("emits"):
-                self.log_emitter(self, trigger["emits"])
+                self.game.log_emitter(self, trigger["emits"])
 
     def broadcast(self, message, color="white"):
         """ Publishes call backs from objects to game """
@@ -161,7 +161,7 @@ class Vendor(BaseObject):
         else:
             # AI will choose first item to satisfy their needs
             # If satisfying isn't found, they'll consider it broken
-            desired = filter(lambda x: user.satisfying in x.satisfies, self.inventory)
+            desired = filter(lambda x: user.wants_item(x), self.inventory)
             for item in desired:
                 self.dispense(item, user)
                 break

@@ -212,7 +212,6 @@ class GameInstance():
     def complete_action(self, action):
         self.actions = [x for x in self.actions if x is not action]
         del self.renderer.action_cache[action]
-        del action
 
     def log_request(self, obj, request_action):
         '''
@@ -221,9 +220,9 @@ class GameInstance():
         if obj not in self.work_requests[request_action]:
             self.work_requests[request_action].append(obj)
 
-    def complete_request(self, job):
-        self.work_requests = [x for x in self.work_requests if x is not job]
-        del job
+    def complete_request(self, job, target):
+        if job in self.work_requests:
+            self.work_requests[job] = [x for x in self.work_requests[job] if x is not target]
 
     def log_emitter(self, obj, thought):
         # TODO: Implement emitted auras

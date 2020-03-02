@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import reduce
 from random import randint
 from constants import game_actions, game_objects
@@ -47,7 +48,6 @@ class Action():
         self.effects = effects
 
     def find_targets(self):
-        targets = []
         if not self.req_workstation:
             return self.actor
         elif self.producers:
@@ -78,19 +78,16 @@ class Action():
     def missing_reagents(self):
         missing = []
         if self.req_reagents:
-            missing = []
-            missing += list(
-                map(
-                    lambda x: search_by_obj(self.actor.inventory, x["name"], x.get("state")),
-                    [x for x in self.req_reagents if x.get("name")]
-                )
-            )
-            missing += list(
-                map(
-                    lambda x: search_by_tag(self.actor.inventory, x["tag"], x.get("state")),
-                    [x for x in self.req_reagents if x.get("tag")]
-                )
-            )
+            for reagent in self.req_reagents:
+                if reagent.get("name"):
+                    search_func = search_by_obj
+                else:
+                    search_func = search_by_tag
+
+                match = search_func(self.actor.inventory, reagent["name"], reagent.get("state"))
+                if match:
+                    continue
+                missing.append(reagent)
 
         return missing
 
@@ -201,18 +198,22 @@ class ActionCenter():
 
     def store_tasks(self, task_list):
         for task in task_list:
-            self.mob.memories.add_job(task_list)
+            self.mob.memories.add_job(task)
 
     def store_missing_reagents(self, reagent_list):
         for reagent in reagent_list:
-            self.mob.memories.add_wanted(reagent)
+            self.mob.memories.add_wanted(reagent["name"])
 
     def walk_action(self, action, missing_reagents):
+        action_list = [(action, missing_reagents)]
         for reagent in missing_reagents:
-            for production in filter(lambda x: reagent in x.produces, self.actions):
+            # TODO: Don't currently have a way to support production search for reagents by tag
+            for production in filter(lambda x: reagent["name"] in x.produces, self.actions):
                 production_reagents = production.missing_reagents()
-                yield self.walk_action(production, production_reagents)
-                yield production, production_reagents
+                break
+            action_list += self.walk_action(production, production_reagents)
+
+        return action_list
 
     def walk_options(self, possibilites):
         """
@@ -231,10 +232,13 @@ class ActionCenter():
                 - actions = what gives wood + what gives stone/what gives iron => what gives iron_ore + make_arrowheads
                 - at every step, some of these goods could be purchasable
         """
-        possible_task_lists = {}
+        possible_task_lists = defaultdict(list)
         for possible in possibilites:
+            print(possible[0].name)
             task_list = self.walk_action(*possible)
-            possible_task_lists[possible[0]] = list(task_list)
+            task_list.reverse()
+            print(task_list)
+            possible_task_lists[possible[0]] = task_list
 
         # Weighing options only by number of tasks for now
         winner = sorted(possible_task_lists, key=lambda x: len(possible_task_lists[x]))[0]
@@ -243,8 +247,8 @@ class ActionCenter():
         # If we have nested actions, store task list, store missing reagents, & return first item
         # TODO: Assumes list is ordered from top (deep up tree) to bottom (action we actually want)
         if task_list:
-            self.store_tasks(reduce(lambda x, y: x + y, [task[0] for task in task_list[1:]], []))
-            self.store_missing_reagents(reduce(lambda x, y: x + y, [task[1] for task in winner], []))
+            self.store_tasks([task[0] for task in task_list[1:]])
+            self.store_missing_reagents(reduce(lambda x, y: x + y, [task[1] for task in task_list], []))
             first_task = task_list[0][0]
             return first_task
         else:
@@ -262,7 +266,6 @@ class ActionCenter():
         for target in targets:
             # If target currently in use, skip it
             if target.occupied_by:
-                print(f"{target.name}: {target.x},{target.y} occupied by {target.occupied_by.name}")
                 continue
 
             # If target is known to be broken, skip it
@@ -331,11 +334,11 @@ class Memories():
         finally:
             self.broken_items.append(obj)
 
-    def add_wanted(self, item):
-        self.wanted_items.append(item)
+    def add_wanted(self, item_name):
+        self.wanted_items.append(item_name)
 
-    def remove_wanted(self, item):
-        self.wanted_items = [x for x in self.wanted_items if x != item.name]
+    def remove_wanted(self, item_name):
+        self.wanted_items = [x for x in self.wanted_items if x != item_name]
 
     def add_job(self, job):
         self.work_tasks.append(job)
