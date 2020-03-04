@@ -14,6 +14,10 @@ from constants import (
 
 
 class PopUpMenu():
+    # Configurable PopUp attrs
+    # - These default values will be reloaded if others not provided
+    dest_x = 0
+    dest_y = 0
     popup_width = map_width // 2
     popup_height = map_height // 2
     popup = Console(popup_width, popup_height)
@@ -47,11 +51,24 @@ class PopUpMenu():
         )
 
     @classmethod
-    def load_options(cls, title, msg, options):
+    def load_config(cls, dest_x, dest_y, width, height):
+        cls.dest_x = dest_x
+        cls.dest_y = dest_y
+        cls.popup_width = width
+        cls.popup_height = height
+
+    @classmethod
+    def load_options(cls, title, msg, options, popup_config=None):
+        if not popup_config:
+            cls.load_config(0, 0, map_width // 2, map_height // 2)
+        else:
+            cls.load_config(**popup_config)
+
         cls.title = title
         cls.text = ""
         if msg:
             cls.text += f"{msg}\n\n"
+            print(cls.text)
 
         letter_index = ord('a')
         for option_text in options:
@@ -64,8 +81,8 @@ class PopUpMenu():
         cls.render_content()
         cls.popup.blit(
             root,
-            10,
-            10,
+            cls.dest_x,
+            cls.dest_y,
             0,
             0,
             cls.popup_width,
@@ -168,11 +185,10 @@ class Renderer():
     def render_popup(self):
         self.popup.draw_popup(self.root_console)
 
-    def init_popup(self, title, msg=None, options=[], popup_func=None, func_target=None):
+    def init_popup(self, title, msg=None, options=[], popup_func=None):
         self.game.popup_open = True
         self.game.popup_options = options
         self.game.popup_func = popup_func
-        self.game.func_target = func_target
         self.popup.load_options(title, msg, [x if isinstance(x, str) else x.name for x in self.game.popup_options])
 
     def render_tasks(self):

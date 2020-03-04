@@ -3,7 +3,7 @@ from constants import colors, game_objects
 from utils import eval_obj_state
 
 
-def attrFormatter(attrs, obj, override={}, base=False):
+def attrFormatter(obj, attrs=[], override={}, base=False):
     '''
     Formats Object's attributes for rendering when viewing
     - attrs: Attributes for display
@@ -14,6 +14,7 @@ def attrFormatter(attrs, obj, override={}, base=False):
     details = ""
     if base:
         details += f"{getattr(obj, 'name')}\n"
+
     for attr in attrs:
         val = getattr(obj, attr, '')
         if isinstance(val, list):
@@ -51,7 +52,6 @@ class BaseObject():
         self.occupied_by = None
         self.durability = durability
         self.cleanliness = 100
-        self.state = ""
 
         self.triggers = kwargs.get("triggers", [])
 
@@ -86,20 +86,17 @@ class BaseObject():
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
-        return attrFormatter(["durability", "state", "occupied_by"], self, base=True)
+        return attrFormatter(self, ["durability", "cleanliness", "occupied_by"], base=True)
 
 
-class Item(BaseObject):
-    def __init__(self, satisfies, tags, actions=[], owner=None, *args, **kwargs):
+class Appliance(BaseObject):
+    def __init__(self, tags, owner=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Note that owner & holder are not always the same
-        # Holder: always current possessor
-        # Owner: person who purchased item or held item as it was transformed (for whatever reason)
         self.tags = tags
         self.owner = owner
         self.holder = None
 
-    def use(self, user):
+    def can_use(self, user):
         can_use = False
         if self.owner and self.owner is not user:
             self.broadcast(f"{self.name} doesn't belong to {user.name}")
@@ -108,7 +105,7 @@ class Item(BaseObject):
             self.broadcast(f"{self.name} is broken")
             user.broken_target()
         elif self.occupied_by:
-            print(f"{self.name}: {self.x},{self.y} occupied by {self.occupied_by.name}")
+            self.broadcast(f"{self.name}: {self.x},{self.y} occupied by {self.occupied_by.name}")
             user.broken_target()
         else:
             can_use = True
@@ -118,23 +115,28 @@ class Item(BaseObject):
     def dump(self):
         """ Dumps pertinent object attributes for user to view """
         details = super().dump()
-        return details + attrFormatter(["owner"], self)
+        return details + attrFormatter(self, ["owner"])
 
 
-class Vendor(BaseObject):
+class Item(Appliance):
+    def __init__(self, holder=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Note that owner (from Appliance) & holder are not always the same
+        # Holder: always current possessor
+        # Owner: person who purchased item or held item as it was transformed (for whatever reason)
+        self.holder = holder
+
+
+class Vendor(Appliance):
     '''
     Vendor's dispense items from a limited pool
     Player may choose from menu while AI will choose first to satisfy
     Vendor no longer loses durability like other items
     Instead stocks are drained
     '''
-    def __init__(self, satisfies, tags, stock, actions=[], owner=None, *args, **kwargs):
+    def __init__(self, stock, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.satisfies = satisfies
         self.stock = stock
-        self.actions = actions
-        self.tags = tags
-        self.owner = owner
         self.inventory = []
 
         self.restock_items()
@@ -171,8 +173,10 @@ class Vendor(BaseObject):
     def dispense(self, item, user=None):
         """
         Places requested Item in users inventory if not full
+        - Items bought from vendor will be "owned" by user
         - Coworkers should use items in inventory first so full inventory shouldn't matter
-        - Log request for restock if vendor is empty
+        - Coworkers instructed to "pickup_item" as part of dispense (handles whole "holder" thing)
+        - Inventory should be evaluated as part of action resolution so, if empty, restock request will be made
         """
         if not user:
             user = self.game.player
@@ -190,4 +194,4 @@ class Vendor(BaseObject):
         inv = [x.name for x in self.inventory]
         grouped_inv = set([f"{x}: {inv.count(x)}" for x in inv])
         details = super().dump()
-        return details + attrFormatter(["owner", "satisfies"], self, override={'stock': grouped_inv})
+        return details + attrFormatter(self, override={'stock': grouped_inv})

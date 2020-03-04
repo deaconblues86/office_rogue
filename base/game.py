@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from tcod.event import EventDispatch
 from base.enums import ObjType
-from base.items import BaseObject, Item, Vendor
+from base.items import BaseObject, Item, Appliance, Vendor
 from base.coworker import Mob
 from utils import search_by_obj, search_by_tag
 from constants import (
@@ -110,7 +110,6 @@ class GameInstance():
 
         self.popup_open = False
         self.popup_func = None
-        self.func_target = None
         self.popup_options = []
 
         self.cursor = None
@@ -173,7 +172,7 @@ class GameInstance():
             elif obj_params["obj_type"] == "item":
                 obj = Item(**obj_params)
             elif obj_params["obj_type"] == "appliance":
-                obj = Item(**obj_params)
+                obj = Appliance(**obj_params)
             elif obj_params["obj_type"] == "vendor":
                 obj = Vendor(**obj_params)
             elif obj_params["obj_type"] == "mob":

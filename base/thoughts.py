@@ -24,7 +24,7 @@ class Action():
 
         self.req_object = requires.get("target", None)          # Target is specified by object name OR
         self.req_tag = requires.get("target_tag", None)         # Target is specified by generalized object tag
-        self.req_workstation = self.req_object or self.req_tag  # Normalized Required Target
+        self.req_appliance = self.req_object or self.req_tag    # Normalized Required Target
 
         self.req_state = requires.get("target_state", None)     # Target requires a certain state
 
@@ -48,7 +48,7 @@ class Action():
         self.effects = effects
 
     def find_targets(self):
-        if not self.req_workstation:
+        if not self.req_appliance:
             return self.actor
         elif self.producers:
             # Build a dictionary of possible producers/vendors that sell goods actor wants
@@ -119,10 +119,11 @@ class Action():
         else:
             app_target = [x for x in self.reagents if x.name == effect["hits"]][0]
 
-        # If it's function call it, else it's a stat
+        # If it's a function call it, else it's a stat
         if effect.get("func"):
             req_method = getattr(app_target, effect["func"])
-            req_method()
+            args = [self.actor] if effect["func"] == "use" else []  # use functions take actor as an arg
+            req_method(*args)
         else:
             app_stat = effect["stat"]
 
@@ -166,7 +167,7 @@ class ActionCenter():
          - The initial impetus of this rougelike was to set up a functional office of sorts, now, with larger goals, we're thinking villages within a world
          - In either case, I would expected a certain amount of separation of duties... Not one guy mining stone, smelting ore it, forging it, etc
            - goods that can't be sourced locally should be requested from traders who look beyond borders
-           - also need to ability to train people for missing jobs/create missing workstations
+           - also need to ability to train people for missing jobs/create missing appliances
          - The player can certainly do all that, and that's fine, they have a brain.
          - If we assume a certain amount of specialization, which would be better ultimately I feel, then we need a way to manage requests of materials as well
             - "no food at the granary sire"
@@ -233,12 +234,12 @@ class ActionCenter():
                 - at every step, some of these goods could be purchasable
         """
         possible_task_lists = defaultdict(list)
-        for possible in possibilites:
-            print(possible[0].name)
-            task_list = self.walk_action(*possible)
+        for possible_action, missing_reagents in possibilites:
+            print(possible_action.name)
+            task_list = self.walk_action(possible_action, missing_reagents)
             task_list.reverse()
             print(task_list)
-            possible_task_lists[possible[0]] = task_list
+            possible_task_lists[possible_action] = task_list
 
         # Weighing options only by number of tasks for now
         winner = sorted(possible_task_lists, key=lambda x: len(possible_task_lists[x]))[0]

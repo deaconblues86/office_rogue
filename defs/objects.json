@@ -239,6 +239,7 @@
         "color": "white",
         "obj_type": "mob",
         "blocks": true,
-        "needs": ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"]
+        "needs": ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"],
+        "tags": ["coworker"]
     }
 }

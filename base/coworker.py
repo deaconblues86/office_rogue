@@ -10,9 +10,10 @@ class Mob(BaseObject):
     """
     max_inventory = 4
 
-    def __init__(self, needs, social, hunger, thirst, bladder, bowels, energy, gender, job, *args, **kwargs):
+    def __init__(self, needs, social, hunger, thirst, bladder, bowels, energy, gender, job, tags, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.needs = needs
+        self.tags = tags
 
         self.social = social
         self.hunger = hunger
@@ -292,7 +293,7 @@ class Mob(BaseObject):
         # If the target can be used, lets do it
         # Otherwise, lose it and something new will be chosen
         self.target_action = player_action or self.target_action
-        if self.target.use(self):
+        if self.target.can_use(self):
             self.game.log_action(player_action or self.target_action)
             self.target_action.init_action()
 
@@ -300,7 +301,7 @@ class Mob(BaseObject):
             self.game.cursor = None
             self.game.popup_open = False
 
-    def use(self, user):
+    def can_use(self, user):
         can_use = False
         if self.occupied:
             print(f"{self.name}: {self.x},{self.y} is currently occupied")
@@ -353,5 +354,5 @@ class Mob(BaseObject):
         tasks = [x.name for x in self.get_tasks()]
         wants = self.memories.wanted_items
         return details + attrFormatter(
-            attrs, self, override={"broken": broken, "tasks": tasks, "inventory": inv, "wants": wants}
+            self, attrs, override={"broken": broken, "tasks": tasks, "inventory": inv, "wants": wants}
         )
