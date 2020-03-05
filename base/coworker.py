@@ -278,8 +278,8 @@ class Mob(BaseObject):
         else:
             # AI Shouldn't path to places it can't go so shouldn't need player check here, but this is for player
             # "bump" actions
-            # Assumes one usable object per tile
-            appliances = [c for c in dest_tile.contents if getattr(c, "use", None)]
+            # Assumes one usable object (Appliance/Vendor) per tile
+            appliances = [c for c in dest_tile.contents if getattr(c, "can_use", None)]
             if appliances:
                 selected_obj = appliances[0]
                 options = self.action_center.available_actions(selected_obj)

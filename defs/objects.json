@@ -4,7 +4,6 @@
         "char": "S",
         "color": "yellow",
         "blocks": true,
-        "satisfies": [],
         "obj_type": "appliance",
         "tags": ["vendor", "appliance"],
         "triggers": {
@@ -22,7 +21,6 @@
         "name": "Vending Machine",
         "char": "V",
         "color": "yellow",
-        "satisfies": ["hunger", "thirst"],
         "blocks": true,
         "obj_type": "vendor",
         "stock": [
@@ -39,7 +37,6 @@
         "name": "Coffee Maker",
         "char": "C",
         "color": "yellow",
-        "satisfies": ["energy", "thirst"],
         "blocks": true,
         "actions": ["making_coffee"],
         "obj_type": "appliance",
@@ -53,7 +50,6 @@
         "char": "F",
         "color": "blue",
         "blocks": true,
-        "satisfies": [],
         "obj_type": "appliance",
         "tags": ["appliance"],
         "triggers": {
@@ -69,7 +65,6 @@
         "char": "M",
         "color": "orange",
         "blocks": true,
-        "satisfies": [],
         "obj_type": "appliance",
         "tags": ["appliance"],
         "triggers": {
@@ -84,7 +79,6 @@
         "name": "Terminal",
         "char": "t",
         "color": "light_green",
-        "satisfies": ["work"],
         "blocks": true,
         "obj_type": "appliance",
         "tags": ["electronic"]
@@ -94,7 +88,6 @@
         "char": "U",
         "color": "white",
         "blocks": true,
-        "satisfies": ["bladder"],
         "obj_type": "appliance",
         "tags": ["appliance"],
         "triggers": {
@@ -110,7 +103,6 @@
         "char": "H",
         "color": "white",
         "blocks": true,
-        "satisfies": [],
         "obj_type": "appliance",
         "tags": ["appliance"],
         "triggers": {
@@ -126,7 +118,6 @@
         "char": "T",
         "color": "white",
         "blocks": true,
-        "satisfies": ["bladder", "bowels"],
         "obj_type": "appliance",
         "tags": ["appliance"],
         "triggers": {
@@ -180,7 +171,6 @@
         "name": "Water Bottle",
         "char": "!",
         "color": "light_blue",
-        "satisfies": ["thirst"],
         "obj_type": "item",
         "tags": ["consumable"],
         "triggers": {
@@ -191,7 +181,6 @@
         "name": "Snack",
         "char": "^",
         "color": "light_green",
-        "satisfies": ["hunger"],
         "obj_type": "item",
         "tags": ["consumable"],
         "triggers": {
@@ -202,7 +191,6 @@
         "name": "Cellphone",
         "char": "[",
         "color": "light_orange",
-        "satisfies": ["mood"],
         "obj_type": "item",
         "tags": ["electronic"]
     },
@@ -210,7 +198,6 @@
         "name": "Urine",
         "char": "%",
         "color": "light_yellow",
-        "satisfies": ["clean"],
         "emits": ["Grossed Out"],
         "obj_type": "item",
         "tags": ["liquid", "garbage"]
@@ -219,7 +206,6 @@
         "name": "Poo",
         "char": "%",
         "color": "light_sepia",
-        "satisfies": ["clean"],
         "emits": ["Grossed Out"],
         "obj_type": "item",
         "tags": ["garbage"]
@@ -228,7 +214,6 @@
         "name": "Trash",
         "char": "%",
         "color": "light_red",
-        "satisfies": ["clean"],
         "emits": "Grossed Out",
         "obj_type": "item",
         "tags": ["garbage"]

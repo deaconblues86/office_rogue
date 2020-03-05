@@ -126,6 +126,10 @@ class Item(Appliance):
         # Owner: person who purchased item or held item as it was transformed (for whatever reason)
         self.holder = holder
 
+    def can_use(self, user):
+        # Items can only be used while held
+        return user == self.holder
+
 
 class Vendor(Appliance):
     '''
