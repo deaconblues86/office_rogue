@@ -373,6 +373,7 @@ class GameInstance():
                 self.cursor = Cursor(self, self.player.x, self.player.y)
 
             elif key == ord("i"):
+                # TODO: Inventory no longer works
                 self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.use_item)
 
             elif key == ord("g"):
