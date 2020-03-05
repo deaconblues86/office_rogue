@@ -4,7 +4,7 @@ import tcod.event as Event
 from base.game import Dispatcher, GameInstance
 from base.renderer import Renderer
 from base.map_gen import MapGenerator
-from constants import screen_width, screen_height, colors
+from constants import screen_width, screen_height
 
 # Setup the font.
 tcod.console_set_custom_font(
