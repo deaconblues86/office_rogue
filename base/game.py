@@ -11,7 +11,6 @@ from constants import (
     male_names,
     game_objects,
     game_jobs,
-    game_auras,
     colors
 )
 

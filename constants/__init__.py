@@ -1,5 +1,4 @@
 import json
-import tcod
 from collections import defaultdict
 from base.map import Rect
 

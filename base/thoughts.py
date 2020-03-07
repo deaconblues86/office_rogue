@@ -161,18 +161,6 @@ class ActionCenter():
         )
 
     def find_action(self, need):
-        """
-        How deep can this really go?  Huge production chains of course lead to evaluations within evaluations, but
-        is this that really a concern or what we want?
-         - The initial impetus of this rougelike was to set up a functional office of sorts, now, with larger goals, we're thinking villages within a world
-         - In either case, I would expected a certain amount of separation of duties... Not one guy mining stone, smelting ore it, forging it, etc
-           - goods that can't be sourced locally should be requested from traders who look beyond borders
-           - also need to ability to train people for missing jobs/create missing appliances
-         - The player can certainly do all that, and that's fine, they have a brain.
-         - If we assume a certain amount of specialization, which would be better ultimately I feel, then we need a way to manage requests of materials as well
-            - "no food at the granary sire"
-         - already have plans for a "manager" class whose sole job it is to post requests for items & generally direct workers
-        """
         possible_actions = []
         target_action = None
         # Starting from actions that satisfy need (lowest level)
@@ -218,20 +206,7 @@ class ActionCenter():
 
     def walk_options(self, possibilites):
         """
-        This is where we need to dive through the action tree to figure out the most efficient regardless of all the notes above...
-        Let's consider hunting...
-        - needs bolts/arrows & needs crossbow/bow
-        - OR needs traps & checks traps
-            - Traps are easy enough => place traps satsifies work & checks traps satisfies work
-                - intresting though, check should take priority & once done, then place
-                - place traps would require traps...  reagent check would prioritize check
-        - Assuming "hunters" start with req. gear, really only the ammo that matters
-        - "Purchase" would be one action
-        - "Make" is several (harvet_wood, harvest_stone/(harvest_iron_ore & smelt_iron), make_arrowheads)
-        - Think it's safe to, regardless of action, it's always about missing reagents...
-            - Maybe "flatten" all missing reagents (going back to "Make"):
-                - actions = what gives wood + what gives stone/what gives iron => what gives iron_ore + make_arrowheads
-                - at every step, some of these goods could be purchasable
+        This is where we need to dive through the action tree to figure out the most efficient option
         """
         possible_task_lists = defaultdict(list)
         for possible_action, missing_reagents in possibilites:
@@ -246,7 +221,6 @@ class ActionCenter():
         task_list = possible_task_lists[winner]
 
         # If we have nested actions, store task list, store missing reagents, & return first item
-        # TODO: Assumes list is ordered from top (deep up tree) to bottom (action we actually want)
         if task_list:
             self.store_tasks([task[0] for task in task_list[1:]])
             self.store_missing_reagents(reduce(lambda x, y: x + y, [task[1] for task in task_list], []))

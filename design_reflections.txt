@@ -1,87 +1,6 @@
 Design overview:
 
-- GameInstance:  Houses all game data
-    De Jure:
-        - Objects should route all requests, based on their state, though GameInstace
-            - This includes movement, changes in state (in use, broken, dirty, etc) and the associated effect (request),
-              action resolution, emissions (just a stub as of now), etc.
-        - All map based changes are then routed to MapGenerator which handles pathing,
-        - All Rendering tasks, based on player input and state of game, are routed to renderer
-    De Facto:
-        - Movement is currently 50/50
-            - should make a request to move and receive back whether move is possible.  From here coworker can
-              act appropriately
-            - as of now, coworker performs on check by asking game whether tile is blocked
-        - Action resolution is jumbled mess where coworker performs some clean up (especially on self) and reports other
-          to game instances
-        - WorkRequests are doubly dubious as Action/WorkRequests should really be unified in some way and again are split between
-          coworker/workrequest/game
-
-    - division of duties between rendere/mapgen should be pretty good at the moment
-
-
-- Coworker:
-    - Should really only handle the desicion making of AI
-    - Once a decision is made, it should be reported to the game instance to put it in motion - this should include the desicion
-      to move
-    - This can also include the decision to ask the game questions (i.e. find_need())
-    - game instance can then reply with object of request (success or true in the case of movement) or false
-    - failures can be remembered (as they are now in memories for pathing/broken objects) and successes can be carried out
-
-
-- Actions:
-    - Currently exist in a weird limbo between themselves, the coworkers carrying them out, and their state with the game instance
-    - Game instance should serve as the go between with Actions and coworkers as with everything else (render/map gen)
-        - Actions currently house their pertinent info, as should be the case, but the resolution/occupation of actions tightly
-          couples the action, actor, target
-        - Action should resolve itself, report this back to GameInstance, who then reports this back to the actor/target
-
-- Requests:
-    - Currently only serves a subset of actions, self reported by certain items, but really should be utilized for all actions
-        - Coworker wants to use Coffee Maker?  False, coworker wants to satisfy energy or thirst
-            - This kind of happens, but pathing by way of a wrapped game instance method, action resolution by way of the item in use
-              etc.
-            - Should be:
-                1) satisfy energy request
-                2) game instance finds object WITH ACTION that satisifies (no satisfies tag)
-                    - No, this is not correct...  the problem is that the coffee machine doesn't satisfy the energy,
-                      the coffee does.  So the coworker is looking for what "vends" the coffee
-                        - So coffee "satisfies" energy, but the action to do so must be "consume," not "throw" or "drop."
-                            So maybe an on_consume tag? {on_consume: making_coffee} (since making_coffee is the current action)
-                        - To condradict myself again, I think it has to be action based:
-                            - drink_coffee, sleep, drink_tea, drink_soda all satsify energy
-                            - coffee has drink_coffee action, beds & sofas have sleep action, tea has drink_tea action, and
-                              pepsi/coke/dr. pepper have drink_soda action
-                            - coffee/tea/pepsi/etc all have a "pour" action as well which "destroys" the item and creates a spill
-                                - so target_func of work requests can be moved into the associated actin (clean_up "destroys" the mess)
-                    - current vendor has no "consumes" or "produces" objects, but essentially it consumes nothing and produces
-                      snacks and water bottles
-                    - stock attr of vending machine def would be replaced with appropriate vend actions, though "stock" could
-                      be added to the object in a setter/getter style (like tile contents)
-                3) Action consulted for range/item requirements (technically coffee & water?)
-                    - have stub of idea for "produces" & "consumes" action
-                    - really consumes would be coffee_grounds/water and produces would be coffee
-                    - coffee being the item that actually yields the energy boost
-                4) WorkRequests then issued and assigned to requestee
-                    - fetch water from water_vendor (vendor currently uses satisfies tag as well, but should be based on stock)
-                    - fetch coffee from coffee_vendor
-                    - bring both to coffee maker to brew_coffee
-                note: as is the case now, if any of the above vendors are out, a WorkRequest of restock will be issued to game
-                instance
-        - while the coffee maker example is really complicated and opens new grounds, this WorkRequest could be as simple as
-          Go to X tile & resolve request (do action)
-
-        - this unifies action/request resolution as
-            - all actions are now resolved via request resolution mechanics
-            - coworker "target" will always be the resolution of a request, not sometimes an object
-            - request resolution can then solely house the occupation of actors/targets while actions are resolved
-        - also enables complex trees of actions to be handled (like the coffee example)
-        - addtionally, requests should never be arbitrarily assigned by game instance, but rather read like a bulletin
-          board by coworkers able to fulfil outestanding requests (dirty/broken/restock/etc)
-
-Cursor Actions:
-    - Needs to be list of available actions from target object as well as available actions from objects in own inventory
-
+ - In Flux
 
 Proposed Action System:
     - Coworkers have list of all available actions
@@ -106,3 +25,28 @@ Proposed Action System:
 
     Side Note:
         - Interactive Menu of available actions can be populated based on chosen object/chosen object state under cursor, held reagents, etc.
+
+Notes on nested actions/supply chains:
+    Huge production chains of course lead to evaluations within evaluations, but is this that really a concern or what we want?
+     - The initial impetus of this rougelike was to set up a functional office of sorts, now, with larger goals, we're thinking villages within a world
+     - In either case, I would expected a certain amount of separation of duties... Not one guy mining stone, smelting ore it, forging it, etc
+       - goods that can't be sourced locally should be requested from traders who look beyond borders
+       - also need to ability to train people for missing jobs/create missing appliances
+     - The player can certainly do all that, and that's fine, they have a brain.
+     - If we assume a certain amount of specialization, which would be better ultimately I feel, then we need a way to manage requests of materials as well
+        - "no food at the granary sire"
+     - already have plans for a "manager" class whose sole job it is to post requests for items & generally direct workers
+
+    Let's consider hunting...
+    - needs bolts/arrows & needs crossbow/bow
+    - OR needs traps & checks traps
+        - Traps are easy enough => place traps satsifies work & checks traps satisfies work
+            - intresting though, check should take priority & once done, then place
+            - place traps would require traps...  reagent check would prioritize check
+    - Assuming "hunters" start with req. gear, really only the ammo that matters
+    - "Purchase" would be one action
+    - "Make" is several (harvet_wood, harvest_stone/(harvest_iron_ore & smelt_iron), make_arrowheads)
+    - Think it's safe to, regardless of action, it's always about missing reagents...
+        - Maybe "flatten" all missing reagents (going back to "Make"):
+            - actions = what gives wood + what gives stone/what gives iron => what gives iron_ore + make_arrowheads
+            - at every step, some of these goods could be purchasable
