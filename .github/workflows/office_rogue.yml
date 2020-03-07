@@ -23,10 +23,9 @@ jobs:
     - name: Lint with flake8
       run: |
         flake8 .
+    - name: Test with pytest
+      run: |
+        pytest tests tests/
     - name: Check complexity with Xenon
       run: |
         xenon -a A -b B -m B .
-    # - name: Test with pytest
-    #   run: |
-    #     pip install pytest
-    #     pytest
