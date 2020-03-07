@@ -94,6 +94,7 @@ class Cursor():
 
 class GameInstance():
     def __init__(self):
+        self.debugging = False
         self.world_objs = {
             ObjType.static: [],
             ObjType.appliance: [],
@@ -106,6 +107,7 @@ class GameInstance():
         self.work_requests = defaultdict(list)
 
         self.game_msgs = []
+        self.game_debug_msgs = []
         self.turns = 0
 
         self.popup_open = False
@@ -231,8 +233,12 @@ class GameInstance():
         # state-based auras (i.e. on_dirty) - need to know when temps end
         pass
 
-    def log_message(self, new_msg, color="white"):
+    def log_message(self, new_msg, color="white", debug=False):
         """ Appends message to list of game messages w/ color and trims history """
+        if debug and self.debugging:
+            print(new_msg)
+            self.game_debug_msgs.append(new_msg)
+
         self.game_msgs.append((new_msg, color))
         self.game_msgs = self.game_msgs[-1 * MAX_HISTORY:]
 

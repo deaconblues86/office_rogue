@@ -16,6 +16,7 @@ def message_patch(game, *args, **kwargs):
 class BaseTestCase(TestCase):
     def setUp(self):
         self.game = GameInstance()
+        self.game.debugging = True
         self.map_gen = MapGenerator(self.game)
 
         self.map_gen.generate_map()

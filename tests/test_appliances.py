@@ -1,4 +1,3 @@
-import pytest
 from tests.base_test import BaseTestCase
 from constants import game_objects
 

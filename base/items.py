@@ -82,9 +82,9 @@ class BaseObject():
             elif trigger.get("create"):
                 self.game.create_object(self, self.x, self.y, trigger["create"])
 
-    def broadcast(self, message, color="white"):
+    def broadcast(self, message, color="white", debug=False):
         """ Publishes call backs from objects to game """
-        self.game.log_message(message, color)
+        self.game.log_message(message, color, debug)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """

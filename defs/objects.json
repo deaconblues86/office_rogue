@@ -232,7 +232,7 @@
         "color": "white",
         "obj_type": "mob",
         "blocks": true,
-        "needs": ["social", "hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"],
+        "needs": ["hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"],
         "tags": ["coworker"],
         "triggers": {
             "bladder_full": {"create": "Urine"},

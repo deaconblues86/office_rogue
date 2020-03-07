@@ -119,24 +119,22 @@ class Mob(BaseObject):
             if self.memories.work_tasks:
                 self.target_action = self.memories.start_next_job()
             else:
-                lowest_status = 1
-                for need in self.needs:
-                    if need == "social":
-                        continue
-                    perc = getattr(self, need) / getattr(self, f"max_{need}")
-                    if perc < lowest_status:
-                        lowest_status = perc
-                        self.satisfying = need
-
+                # TODO: Will need to add social back to coworker def at some point
+                need_checks = sorted(
+                    [{"need": need, "perc": getattr(self, need) / getattr(self, f"max_{need}")}for need in self.needs],
+                    key=lambda x: x["perc"]
+                )
+                self.satisfying = need_checks[0]["need"]
                 self.target_action = self.action_center.find_action(self.satisfying)
+
             if not self.target_action:
-                print(f"{self.name} can't satisfy {self.satisfying}")
+                self.broadcast(f"{self.name} can't satisfy {self.satisfying}", debug=True)
                 return
 
         if not self.target:
             self.target = self.action_center.find_target(self.target_action)
             if not self.target:
-                print(f"{self.name} can't find a target to perform {self.target_action.name}")
+                self.broadcast(f"{self.name} can't find a target to perform {self.target_action.name}", debug=True)
                 return
 
             # Don't really need a path for self
@@ -145,7 +143,8 @@ class Mob(BaseObject):
 
             self.path = self.calculate_target_path(self.target)
             if not self.path:
-                print(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}")
+                self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}", debug=True)
+                self.target = None
 
     def calculate_target_path(self, target_obj=None):
         """
@@ -162,7 +161,6 @@ class Mob(BaseObject):
         - Frees up worker occupation
         - Ticks Mob Memories
         - Ticks Mob needs every four turns
-          - Processes Special events as certain stats tank
         """
         # If not preoccupied, check needs and do stuff
         if not self.game.turns % 6:
@@ -175,29 +173,13 @@ class Mob(BaseObject):
                 setattr(self, need, max(getattr(self, f"{need}_drain") + getattr(self, need), 0))
                 if getattr(self, need) == 0:
                     self.mood_drain -= 1
-            else:
-                # If mood's not currently draining, increase mood equal to stats 75% filled
-                if not self.mood_drain:
-                    positives = [x for x in self.needs if getattr(self, need) > 75]
-                    self.mood = min(len(positives) + self.mood, 100)
 
-            # Draining mood based on unfufilled needs
-            self.mood += self.mood_drain
-            if self.work <= 0:
-                self.mob_fired()
+            # If mood's not currently draining, increase mood equal to stats 75% filled
+            if not self.mood_drain:
+                positives = [x for x in self.needs if getattr(self, need) > 75]
+                self.mood = min(len(positives) + self.mood, 100)
 
-            if self.mood <= 0:
-                self.mob_quits()
-
-            if self.bladder <= 0:
-                urine = game_objects["Urine"]
-                self.game.create_object(self.x, self.y, urine)
-                self.bladder = self.max_bladder
-
-            if self.bowels <= 0:
-                poo = game_objects["Poo"]
-                self.game.create_object(self.x, self.y, poo)
-                self.bowels = self.max_bowels
+            self.eval_triggers()
 
     def take_turn(self):
         """
@@ -217,67 +199,57 @@ class Mob(BaseObject):
         if self.inventory_full():
             trash = filter(lambda x: any(s not in self.needs for s in x.satisfies), self.inventory)
             for t in trash:
-                print(f"{self.name} dropped {t.name}")
+                self.broadcast(f"{self.name} dropped {t.name}", debug=True)
                 self.drop_item(t)
                 break
 
         # If not preoccupied, check needs and do stuff
         if not self.occupied:
             self.check_needs()
-            self.move_to_target()
+            if self.target:
+                self.move_to_target()
 
     def move_to_target(self):
-        if not self.target:
-            return None
-
-        # Dest. has been reached -> use target, clear state
+        # Dest. has been reached -> use target
         if not self.path:
             self.perform_action()
-            self.state = ""
             return None
 
-        # Will be standard Move
-        next_tile = self.game.get_tile(*self.path[0])
-        if not next_tile.blocked:
+        next_tile = self.game.get_tile(*self.path.pop(0))
+        blockers = [x for x in next_tile.contents if x.blocks]
+
+        # If path not blocked, will be standard move
+        # If path blocked by coworker who wants my spot, lets swap places
+        # Otherwise we'll wait a bit
+        if not blockers:
             self.move(next_tile)
-
-        # Will wait or try to swap places with blocking coworker
+        elif len(blockers) == 1 and isinstance(blockers[0], Mob):
+            coworker = blockers[0]
+            if coworker.path and coworker.path[0] == (self.x, self.y):
+                self.broadcast(f"{self.name} swapped with {coworker.name}...", debug=True)
+                coworker.move(self.game.get_tile(*coworker.path.pop(0)), swapping=True)
+                self.move(next_tile, swapping=True)
         else:
-            blockers = [x for x in next_tile.contents if x.blocks]
-            if len(blockers) == 1 and isinstance(blockers[0], Mob):
-                coworker = blockers[0]
-                if coworker.path and coworker.path[0] == (self.x, self.y):
-                    print(f"{self.name} swapped with {coworker.name}...")
-                    coworker.move(self.game.get_tile(*coworker.path[0]), swapping=True)
-                    self.move(next_tile, swapping=True)
-
             self.waiting += 1
             if self.waiting == 4:
-                print(f"{self.name} is recalcing path...")
+                self.waiting = 0
+                self.broadcast(f"{self.name} is recalcing path...", debug=True)
                 self.path = self.calculate_target_path()
 
     def move(self, dest_tile, swapping=False):
         """
         Handles Player and Coworker Move actions
         - dest_tile: Tile to be moved to/use
-        - swapping: When True, overrides typical blocked check to allow to coworkers to exchange
-          positions if they both want to be in each others' spots
         """
-        # Standard Move action.  GameInstance will be notified
-        if (not dest_tile.blocked or swapping):
+        # Standard Move action
+        if not dest_tile.blocked or swapping:
             self.game.remove_tile_content(self)
             self.x = dest_tile.x
             self.y = dest_tile.y
             self.game.add_tile_content(self)
 
-            # Wrapped pop in a try as player won't have a path
-            try:
-                self.path.pop(0)
-            except IndexError:
-                pass
         else:
-            # AI Shouldn't path to places it can't go so shouldn't need player check here, but this is for player
-            # "bump" actions
+            # AI Shouldn't path to places it can't go - this is for player "bump" actions
             # Assumes one usable object (Appliance/Vendor) per tile
             appliances = [c for c in dest_tile.contents if getattr(c, "can_use", None)]
             if appliances:
@@ -304,7 +276,7 @@ class Mob(BaseObject):
     def can_use(self, user):
         can_use = False
         if self.occupied:
-            print(f"{self.name}: {self.x},{self.y} is currently occupied")
+            self.broadcast(f"{self.name}: {self.x},{self.y} is currently occupied")
             user.broken_target()
         else:
             can_use = True
@@ -332,7 +304,6 @@ class Mob(BaseObject):
         self.color = colors["dark_red"]
         self.blocks = False
         self.name = "remains of " + self.name
-        self.state = "fired"
         self.fired = True
 
     def mob_quits(self):
@@ -341,7 +312,6 @@ class Mob(BaseObject):
         self.color = colors["dark_red"]
         self.blocks = False
         self.name = "remains of " + self.name
-        self.state = "fired"
         self.fired = True
 
     def dump(self):
