@@ -1,3 +1,4 @@
+from random import randint
 from base.enums import ObjType
 from constants import colors, game_objects
 from utils import eval_obj_state
@@ -61,7 +62,32 @@ class BaseObject():
 
     @property
     def broken(self):
+        # TODO: This technicaly duplicates broken state in defs, but seems harmless and handy (broken's broken)
         return self.durability <= 0
+
+    def apply_modifier(self, mod_stat, mod, mod_type="modifier"):
+        """
+        Applies modifier to supplied stat while respecting applicable floors/ceilings
+         - mod_type can be "new_value", "modifier", or "exec"
+            - new_value simply sets new attr value
+            - exec calculates a modifier
+            - modifier should be applied as is
+         - After applying modifier, stat will first be floored at zero, then capped at max
+        """
+        if getattr(self, mod_stat, None) is None:
+            self.broadcast(f"{self.name} has no stat {mod_stat} to modify", debug=True)
+            return
+        elif mod_type == "new_value":
+            setattr(self, mod_stat, mod)
+            return
+        elif mod_type == "exec":
+            exec_vars = {"app_target": self, "randint": randint, "ret": 0}
+            exec(mod, exec_vars)
+            mod = exec_vars["ret"]
+
+        setattr(self, mod_stat, int(getattr(self, mod_stat, 0) + mod))
+        setattr(self, mod_stat, max(getattr(self, mod_stat), 0))
+        setattr(self, mod_stat, min(getattr(self, mod_stat), getattr(self, f"{mod_stat}_max", 100)))
 
     def destroy(self):
         self.game.delete_object(self)
@@ -75,12 +101,16 @@ class BaseObject():
         for trigger in triggered:
             if trigger.get("request"):
                 self.game.log_request(self, trigger["request"])
-            elif trigger.get("become"):
+            if trigger.get("become"):
                 self.game.transform_object(self, trigger["become"])
-            elif trigger.get("emit"):
+            if trigger.get("emit"):
                 self.game.log_emitter(self, trigger["emit"])
-            elif trigger.get("create"):
-                self.game.create_object(self, self.x, self.y, trigger["create"])
+            if trigger.get("create"):
+                # TODO: Seems dumb that GameInstance doesn't pull obj_params itself based on object name
+                self.game.create_object(self.x, self.y, game_objects.get(trigger["create"]))
+            if trigger.get("effect"):
+                effect = trigger["effect"]
+                self.apply_modifier(effect["stat"], effect["value"], effect["mod_type"])
 
     def broadcast(self, message, color="white", debug=False):
         """ Publishes call backs from objects to game """

@@ -219,10 +219,10 @@ class GameInstance():
         new = game_objects.get(new)
         if new:
             # TODO: Pretty sure delete_object still leaves the object in the game's list of objects...
-            self.create_object(obj.x, obj.y, new, holder=obj.holder)
-            self.delete_object(obj, holder=obj.holder)
+            self.create_object(obj.x, obj.y, new, holder=getattr(obj, "holder", None))
+            self.delete_object(obj, holder=getattr(obj, "holder", None))
         else:
-            print(f"New object not found: {new}")
+            self.log_message(f"New object not found: {new}", debug=True)
 
     def delete_object(self, obj, holder=None):
         if holder:

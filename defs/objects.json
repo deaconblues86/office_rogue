@@ -235,10 +235,16 @@
         "needs": ["hunger", "thirst", "bladder", "bowels", "energy", "work", "mood"],
         "tags": ["coworker"],
         "triggers": {
-            "bladder_full": {"create": "Urine"},
-            "bowels_full": {"create": "Poo"},
+            "bladder_full": {
+                "create": "Urine",
+                "effect": {"stat": "bladder", "mod_type": "new_value", "value": 100}
+            },
+            "bowels_full": {
+                "create": "Poo",
+                "effect": {"stat": "bowels", "mod_type": "new_value", "value": 100}
+            },
             "fired": {"become": "Corpse"},
-            "quit": {"beomce": "Corpse"}
+            "quit": {"become": "Corpse"}
         }
     }
 }

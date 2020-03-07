@@ -1,6 +1,5 @@
 from collections import defaultdict
 from functools import reduce
-from random import randint
 from constants import game_actions, game_objects
 from utils import search_by_obj, search_by_tag, eval_obj_state
 
@@ -126,24 +125,9 @@ class Action():
             req_method(*args)
         else:
             app_stat = effect["stat"]
-
-            # TODO: Use setter/getter approach for stats to avoid the mod check
-            if effect.get("new_value"):
-                setattr(app_target, app_stat, effect.get("new_value"))
-            elif effect.get("modifier"):
-                mod = effect.get("modifier")
-                if mod < 0:
-                    setattr(app_target, app_stat, int(max(getattr(app_target, app_stat, 0) + mod, 0)))
-                else:
-                    setattr(app_target, app_stat, int(min(getattr(app_target, app_stat, 0) + mod, 100)))
-            else:
-                exec_vars = {"app_target": app_target, "randint": randint, "ret": 0}
-                exec(effect.get("exec"), exec_vars)
-                mod = exec_vars["ret"]
-                if mod < 0:
-                    setattr(app_target, app_stat, int(max(getattr(app_target, app_stat, 0) + mod, 0)))
-                else:
-                    setattr(app_target, app_stat, int(min(getattr(app_target, app_stat, 0) + mod, 100)))
+            app_type = effect["mod_type"]
+            app_mod = effect["value"]
+            app_target.apply_modifier(app_stat, app_mod, app_type)
 
 
 class ActionCenter():

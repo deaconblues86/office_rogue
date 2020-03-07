@@ -87,6 +87,9 @@ class Mob(BaseObject):
         else:
             self.char = '@'
 
+    def get_need_perc(self, need):
+        return getattr(self, need) / getattr(self, f"max_{need}")
+
     def get_tasks(self):
         # Returns current tasks from Memories
         return self.memories.work_tasks
@@ -121,7 +124,7 @@ class Mob(BaseObject):
             else:
                 # TODO: Will need to add social back to coworker def at some point
                 need_checks = sorted(
-                    [{"need": need, "perc": getattr(self, need) / getattr(self, f"max_{need}")}for need in self.needs],
+                    [{"need": need, "perc": self.get_need_perc(need)} for need in self.needs],
                     key=lambda x: x["perc"]
                 )
                 self.satisfying = need_checks[0]["need"]
@@ -143,7 +146,9 @@ class Mob(BaseObject):
 
             self.path = self.calculate_target_path(self.target)
             if not self.path:
-                self.broadcast(f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}", debug=True)
+                self.broadcast(
+                    f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}", debug=True
+                )
                 self.target = None
 
     def calculate_target_path(self, target_obj=None):
@@ -160,7 +165,7 @@ class Mob(BaseObject):
         Controls Mob state throught time
         - Frees up worker occupation
         - Ticks Mob Memories
-        - Ticks Mob needs every four turns
+        - Ticks Mob needs every six turns
         """
         # If not preoccupied, check needs and do stuff
         if not self.game.turns % 6:
@@ -170,14 +175,16 @@ class Mob(BaseObject):
                 # Mood is ticked last - dependent on others
                 if need == "mood":
                     continue
-                setattr(self, need, max(getattr(self, f"{need}_drain") + getattr(self, need), 0))
+                self.apply_modifier(need, getattr(self, f"{need}_drain"))
                 if getattr(self, need) == 0:
                     self.mood_drain -= 1
 
             # If mood's not currently draining, increase mood equal to stats 75% filled
             if not self.mood_drain:
-                positives = [x for x in self.needs if getattr(self, need) > 75]
-                self.mood = min(len(positives) + self.mood, 100)
+                positives = len([x for x in self.needs if self.get_need_perc(need) > .75])
+                self.apply_modifier("mood", positives)
+            else:
+                self.apply_modifier("mood", self.mood_drain)
 
             self.eval_triggers()
 
