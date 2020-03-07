@@ -15,6 +15,7 @@ from constants import (
     MAX_HISTORY
 )
 
+# Maps key strokes to game orders
 key_map = {
     27: "exit",
     32: "space",
@@ -22,16 +23,19 @@ key_map = {
     1073741905: "down",
     1073741904: "left",
     1073741903: "right",
-    1073741919: "num7",
-    1073741920: "num8",
-    1073741921: "num9",
-    1073741916: "num4",
-    1073741917: "num5",
-    1073741918: "num6",
-    1073741913: "num1",
-    1073741914: "num2",
-    1073741915: "num3",
-    1073741923: "numPeriod"
+    1073741919: "up_left",
+    1073741920: "up",
+    1073741921: "up_right",
+    1073741916: "left",
+    1073741918: "right",
+    1073741913: "down_left",
+    1073741914: "down",
+    1073741915: "down_right",
+    ord("k"): "open_cursor",
+    ord("i"): "open_inventory",
+    ord("g"): "open_pickup_item",
+    ord("d"): "open_drop_item",
+    ord("x"): "exit",
 }
 
 
@@ -95,6 +99,7 @@ class Cursor():
 class GameInstance():
     def __init__(self):
         self.debugging = False
+
         self.world_objs = {
             ObjType.static: [],
             ObjType.appliance: [],
@@ -115,6 +120,24 @@ class GameInstance():
         self.popup_options = []
 
         self.cursor = None
+
+        # Store method calls and args for various player orders
+        self.order_map = {
+            "exit": {"func": self.exit_order, "args": []},
+            "space": {"func": self.init_popup, "args": ["Paused"]},
+            "up": {"func": self.move_order, "args": [0, -1]},
+            "down": {"func": self.move_order, "args": [0, 1]},
+            "left": {"func": self.move_order, "args": [-1, 0]},
+            "right": {"func": self.move_order, "args": [1, 0]},
+            "up_left": {"func": self.move_order, "args": [-1, -1]},
+            "up_right": {"func": self.move_order, "args": [1, -1]},
+            "down_left": {"func": self.move_order, "args": [-1, 1]},
+            "down_right": {"func": self.move_order, "args": [1, 1]},
+            "open_cursor": {"func": self.init_cursor, "args": []},
+            "open_inventory": {"func": self.open_inventory, "args": []},
+            "open_pickup_item": {"func": self.open_pickup_item, "args": []},
+            "open_drop_item": {"func": self.open_drop_item, "args": []},
+        }
 
     def run_coworkers(self):
         if not self.popup_open:
@@ -285,43 +308,43 @@ class GameInstance():
         dest_tile = self.get_tile(dest_x, dest_y)
         self.player.move(dest_tile)
 
-    # Sets up key_bindings
-    def handle_keys(self, event):
-        key = event.sym
+    def move_order(self, mod_x, mod_y):
+        if self.cursor:
+            self.cursor.move(mod_x, mod_y)
+        else:
+            self.player_move_or_use(mod_x, mod_y)
 
-        # Handle pop up options
+    def init_cursor(self):
+        if not self.popup_open:
+            self.cursor = Cursor(self, self.player.x, self.player.y)
+
+    def open_inventory(self):
+        if not self.popup_open:
+            # TODO: Inventory no longer works
+            self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.use_item)
+
+    def open_pickup_item(self):
+        if not self.popup_open:
+            self.init_popup(
+                "Pick Up Item",
+                options=[
+                    x
+                    for x in self.get_tile(self.player.x, self.player.y).contents
+                    if isinstance(x, Item)
+                ],
+                popup_func=self.player.pickup_item
+            )
+
+    def open_drop_item(self):
+        if not self.popup_open:
+            self.init_popup(
+                "Drop Item",
+                options=self.player.inventory,
+                popup_func=self.player.drop_item
+            )
+
+    def handle_popup_options(self, key):
         if self.popup_open:
-            if key_map.get(key) == "exit" or key == ord("x"):
-                self.popup_open = False
-                if self.cursor:
-                    self.cursor = None
-                return False
-
-            if self.cursor:
-                if key_map.get(key) in ("up", "num8"):
-                    self.cursor.move(0, -1)
-
-                elif key_map.get(key) == "num7":
-                    self.cursor.move(-1, -1)
-
-                elif key_map.get(key) == "num9":
-                    self.cursor.move(1, -1)
-
-                elif key_map.get(key) == "num1":
-                    self.cursor.move(-1, 1)
-
-                elif key_map.get(key) in ("down", "num2"):
-                    self.cursor.move(0, 1)
-
-                elif key_map.get(key) == "num3":
-                    self.cursor.move(1, 1)
-
-                elif key_map.get(key) in ("right", "num6"):
-                    self.cursor.move(1, 0)
-
-                elif key_map.get(key) in ("left", "num4"):
-                    self.cursor.move(-1, 0)
-
             try:
                 opt_index = key - ord('a')
                 choice = self.popup_options[opt_index]
@@ -340,64 +363,28 @@ class GameInstance():
 
                 self.popup_open = False
                 self.cursor = None
+
             except IndexError:
                 pass
 
-        # Handle Std game events
+    def exit_order(self):
+        if self.popup_open:
+            self.popup_open = False
+            self.cursor = None
         else:
-            if key_map.get(key) == "exit":
-                raise SystemExit()
+            raise SystemExit()
 
-            elif key_map.get(key) == "space":
-                self.init_popup("Paused")
+    # Sets up key_bindings
+    def handle_keys(self, event):
+        key = event.sym
 
-            elif key_map.get(key) in ("up", "num8"):
-                self.player_move_or_use(0, -1)
+        # If the key maps to a game order, we'll call the required method
+        # We'll still always try to interpret it has a popup option since check on popup built
+        # into methods being called (keystroke of d could be an option of drop order)
+        if key in key_map:
+            order_issued = key_map[key]
+            order_func = self.order_map[order_issued]["func"]
+            order_args = self.order_map[order_issued]["args"]
+            order_func(*order_args)
 
-            elif key_map.get(key) == "num7":
-                self.player_move_or_use(-1, -1)
-
-            elif key_map.get(key) == "num9":
-                self.player_move_or_use(1, -1)
-
-            elif key_map.get(key) == "num1":
-                self.player_move_or_use(-1, 1)
-
-            elif key_map.get(key) in ("down", "num2"):
-                self.player_move_or_use(0, 1)
-
-            elif key_map.get(key) == "num3":
-                self.player_move_or_use(1, 1)
-
-            elif key_map.get(key) in ("right", "num6"):
-                self.player_move_or_use(1, 0)
-
-            elif key_map.get(key) in ("left", "num4"):
-                self.player_move_or_use(-1, 0)
-
-            elif key == ord("."):
-                pass
-
-            elif key == ord("k"):
-                self.cursor = Cursor(self, self.player.x, self.player.y)
-
-            elif key == ord("i"):
-                # TODO: Inventory no longer works
-                self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.use_item)
-
-            elif key == ord("g"):
-                self.init_popup(
-                    "Pick Up Item",
-                    options=self.get_tile(self.player.x, self.player.y).contents,
-                    popup_func=self.player.pickup_item
-                )
-
-            elif key == ord("d"):
-                self.init_popup(
-                    "Drop Item",
-                    options=self.player.inventory,
-                    popup_func=self.player.drop_item
-                )
-
-            else:
-                print(event, event.sym)
+        self.handle_popup_options(key)

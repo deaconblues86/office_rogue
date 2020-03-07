@@ -19,7 +19,6 @@ def eval_obj_state(obj, state_name=None):
 
     state_def = game_states[state_name]
     state_attr = getattr(obj, state_def["stat"])
-    print(f"Evaluating {obj.name}'s {state_name} state: {state_attr}")
     state_qual = state_def["value"]
     if isinstance(state_attr, list):
         state_attr = len(state_attr)
