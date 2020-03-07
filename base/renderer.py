@@ -171,16 +171,17 @@ class Renderer():
     def render_messages(self):
         x = int(BAR_WIDTH * 2) + 1
         y = map_height
-        for msg in self.game.game_msgs:
-            y += 1
-            self.root_console.print(x=x + 1, y=y, string=msg[0], fg=colors[msg[1]])
 
-    def log_message(self, new_msg, color="white"):
-        new_msg_lines = textwrap.wrap(new_msg, msg_width)
-        for line in new_msg_lines:
-            if len(self.game.game_msgs) == MSG_HEIGHT:
-                self.game.game_msgs.pop(0)
-            self.game.game_msgs.append((line, color))
+        # Starting with latest messages, capture as many lines as can be displayed
+        rendered_msgs = []
+        for msg, color in reversed(self.game.game_msgs):
+            msg_lines = textwrap.wrap(msg, msg_width)
+            rendered_msgs = [(line, color) for line in msg_lines] + rendered_msgs
+            if len(rendered_msgs) > MSG_HEIGHT:
+                break
+        for msg, color in rendered_msgs[-1 * MSG_HEIGHT:]:
+            y += 1
+            self.root_console.print(x=x + 1, y=y, string=msg, fg=colors[color])
 
     def render_popup(self):
         self.popup.draw_popup(self.root_console)

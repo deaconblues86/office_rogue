@@ -45,6 +45,9 @@ STATS = [
 MSG_HEIGHT = 6
 msg_width = screen_width - BAR_WIDTH - 2
 
+# Max lines of message history to keep
+MAX_HISTORY = 50
+
 with open("defs/colors.json") as colors_file:
     colors = json.loads(colors_file.read())
 

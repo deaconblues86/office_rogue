@@ -7,7 +7,11 @@
         "specific":  "Currently have on_create & on_drop as triggers...  might be worth having these special sort of 'states' around, however all",
         "specific more": "of said triggers can be done via action targets (since both place in world)"
     },
-    "dirty": {"stat": "cleanliness", "value": 0},
-    "broken": {"stat": "durability", "value": 0},
-    "empty": {"stat": "inventory", "value": 0}
+    "dirty": {"stat": "cleanliness", "operator": "less_or_equal", "value": 0},
+    "broken": {"stat": "durability", "operator": "less_or_equal", "value": 0},
+    "empty": {"stat": "inventory", "operator": "equal", "value": 0},
+    "bladder_full": {"stat": "bladder", "operator": "less_or_equal", "value": 0},
+    "bowels_full": {"stat": "bowels", "operator": "less_or_equal", "value": 0},
+    "fired": {"stat": "work", "operator": "less_or_equal", "value": 0},
+    "quit": {"stat": "mood", "operator": "less_or_equal", "value": 0}
 }

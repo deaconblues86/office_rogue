@@ -11,7 +11,8 @@ from constants import (
     male_names,
     game_objects,
     game_jobs,
-    colors
+    colors,
+    MAX_HISTORY
 )
 
 key_map = {
@@ -192,6 +193,7 @@ class GameInstance():
     def transform_object(self, obj, new):
         new = game_objects.get(new)
         if new:
+            # TODO: Pretty sure delete_object still leaves the object in the game's list of objects...
             self.create_object(obj.x, obj.y, new, holder=obj.holder)
             self.delete_object(obj, holder=obj.holder)
         else:
@@ -229,8 +231,10 @@ class GameInstance():
         # state-based auras (i.e. on_dirty) - need to know when temps end
         pass
 
-    def log_message(self, *args, **kwargs):
-        self.renderer.log_message(*args, **kwargs)
+    def log_message(self, new_msg, color="white"):
+        """ Appends message to list of game messages w/ color and trims history """
+        self.game_msgs.append((new_msg, color))
+        self.game_msgs = self.game_msgs[-1 * MAX_HISTORY:]
 
     def init_popup(self, *args, **kwargs):
         self.renderer.init_popup(*args, **kwargs)

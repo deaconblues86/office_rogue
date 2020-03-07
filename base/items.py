@@ -75,10 +75,12 @@ class BaseObject():
         for trigger in triggered:
             if trigger.get("request"):
                 self.game.log_request(self, trigger["request"])
-            if trigger.get("become"):
+            elif trigger.get("become"):
                 self.game.transform_object(self, trigger["become"])
-            if trigger.get("emits"):
-                self.game.log_emitter(self, trigger["emits"])
+            elif trigger.get("emit"):
+                self.game.log_emitter(self, trigger["emit"])
+            elif trigger.get("create"):
+                self.game.create_object(self, self.x, self.y, trigger["create"])
 
     def broadcast(self, message, color="white"):
         """ Publishes call backs from objects to game """
