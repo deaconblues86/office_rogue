@@ -22,7 +22,7 @@
         "satisfies": ["work"],
         "requires": {
             "job": "housekeeping",
-            "target": "Trash"
+            "target_tag": "garbage"
         },
         "effects": [
             {"hits": "actor", "stat": "work", "mod_type": "modifier", "value": 50},

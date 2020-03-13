@@ -137,6 +137,8 @@ class Appliance(BaseObject):
             self.broadcast(f"{self.name} is broken")
             user.broken_target()
         elif self.occupied_by:
+            # TODO: Marking occupied as broken may be far too extreme due to memory length
+            # Course the bigger issue is simply sitting around if current action can't be performed
             self.broadcast(f"{self.name}: {self.x},{self.y} occupied by {self.occupied_by.name}")
             user.broken_target()
         else:

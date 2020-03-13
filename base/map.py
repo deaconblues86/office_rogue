@@ -6,7 +6,6 @@ class Tile():
     def __init__(self, x, y, ttype=None):
         self.x = x
         self.y = y
-        self.ttype = ttype
 
         self.contents = []
         self.explored = False

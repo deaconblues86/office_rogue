@@ -20,7 +20,6 @@ class BaseTestCase(TestCase):
         self.map_gen = MapGenerator(self.game)
 
         self.map_gen.generate_map()
-        self.map_gen.generate_path_map()
 
         # self.broadcase_patch = patch("base.game.GameInstance.log_message", message_patch)
         # self.broadcase_patch.start()

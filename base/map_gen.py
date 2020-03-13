@@ -117,7 +117,6 @@ class MapGenerator():
         for x in range(map_width):
             for y in range(map_height):
                 if (x, y) not in inside_tiles:
-                    self.tiles[x][y].ttype = "grass"
                     obj = game_objects["~"]
                     self.game.create_object(x, y, obj)
 
@@ -125,18 +124,20 @@ class MapGenerator():
             obj = game_objects["#"]
             self.game.create_object(coord[0], coord[1], obj)
 
-        h_halls = []
-        rooms = []
-        num_rooms = 0
-
         x = self.interior.x1
         y = self.interior.y1
 
-        building = True
-        next_row = False
-        while building:
-            room_index = random.randrange(0, len(room_types))
-            rtype = list(room_types)[room_index]
+        rooms = []
+        max_row_height = 0
+        room_names = list(room_types)
+        while True:
+            # If we've moved beyond the interior space or have exhausted all rooms trying to fit more in
+            # time to break out
+            if y > self.interior.y2 or not room_names:
+                break
+
+            room_index = random.randrange(0, len(room_names))
+            rtype = room_names[room_index]
 
             w = len(room_types[rtype][0])
             h = len(room_types[rtype])
@@ -144,80 +145,38 @@ class MapGenerator():
             flip = random.randint(0, 100)
 
             if flip < 50:
-                if num_rooms != 0:
-                    x += HALL_WIDTH
                 new_room = Rect(x, y, h, w)
             else:
-                if num_rooms != 0:
-                    x += HALL_WIDTH
                 new_room = Rect(x, y, w, h)
 
-            failed = False
+            # If the rooms have moved beyond the interior space, go to next row
+            # Reset X coord and reposition Y
             if new_room.x2 > self.interior.x2:
-                failed = True
-                next_row = True
+                x = self.interior.x1
+                y += max_row_height + HALL_WIDTH
+                max_row_height = 0
+                continue
 
-            if not failed:
-                self.create_room(new_room, rtype, flip)
-                rooms.append(new_room)
-                num_rooms += 1
+            # If Y's too great, pop it from list cause it'll never fit again
+            # and try again
+            elif new_room.y2 > self.interior.y2:
+                room_names.pop(room_index)
+                continue
 
-                if rtype in LIMITED_ROOMS:
-                    del room_types[rtype]
+            max_row_height = max(max_row_height, new_room.h)
+            rooms.append(new_room)
+            self.create_room(new_room, rtype, flip)
 
-                hall = Rect(new_room.x1, new_room.y2, new_room.w, HALL_WIDTH)
+            if rtype in LIMITED_ROOMS:
+                room_names.pop(room_index)
 
-                if hall.y2 < self.interior.y2:
-                    # create_hall(hall)
-                    h_halls.append(hall)
-
-                x = new_room.x2
-
-            # Running through subsequent rows
-            if next_row:
-                next_row = False
-
-                for hall in h_halls:
-                    heights = []
-
-                    diff_x = hall.w
-
-                    while diff_x > 0:
-                        max_x = hall.x2
-                        if heights == []:
-                            prev_x = hall.x1
-                            diff_x = hall.w
-                        else:
-                            prev_x = rooms[-1].x2  # + 1
-
-                        possible_rooms = self.room_fill(prev_x, hall.y2 + 1, diff_x)
-
-                        if possible_rooms != []:
-                            picked_index = random.randrange(0, len(possible_rooms))
-                            picked_room = possible_rooms[picked_index]
-
-                            self.create_room(picked_room[0], picked_room[1], picked_room[2])
-                            rooms.append(picked_room[0])
-
-                            heights.append(picked_room[0].y2)
-
-                            diff_x = max_x - picked_room[0].x2
-
-                        else:
-                            break
-
-                    if heights != []:
-                        max_height = max(heights)
-                        new_hall = Rect(hall.x1, max_height + 1, hall.w, HALL_WIDTH - 1)
-                        if new_hall.y2 < self.interior.y2:
-                            # create_hall(new_hall)
-                            h_halls.append(new_hall)
-
-                    building = False
+            x = new_room.x2 + HALL_WIDTH + 1
 
         for room in rooms:
             self.place_doors(room)
 
+        # Generating path_map prior to coworkers (since they'll be moving)
+        self.generate_path_map()
         self.generate_coworkers()
 
     def generate_path_map(self):
@@ -241,7 +200,6 @@ class MapGenerator():
         adj_tiles = [x for x in player_terminal.adjacent() if not x.blocked]
 
         player = self.game.create_coworker(adj_tiles[0].x, adj_tiles[0].y, creating_player=True)
-        print("Creating Player")
         player_terminal.owner = self.game.player = player
 
         temp_count = min(len(terminals) / 2, 10)
@@ -249,29 +207,24 @@ class MapGenerator():
             game_jobs[x]["name"]: ceil(temp_count * game_jobs[x].get("pop_percentage", 0))
             for x in game_jobs
         }
-        if sum(req_job_counts.values()) > len(terminals):
-            print(f"Too many jobs for {len(terminals)} terminals")
-
+        print(req_job_counts)
         for job in req_job_counts:
             for worker in range(req_job_counts[job]):
-                try:
-                    t = terminals.pop(0)
-                except IndexError:
-                    pass
-                else:
-                    adj_tiles = [x for x in t.adjacent() if not x.blocked]
-                    x = adj_tiles[0].x
-                    y = adj_tiles[0].y
+                t = terminals.pop(0)
 
-                    coworker = self.game.create_coworker(x, y, job=job)
-                    t.owner = coworker
+                adj_tiles = [x for x in t.adjacent() if not x.blocked]
+                x = adj_tiles[0].x
+                y = adj_tiles[0].y
+
+                coworker = self.game.create_coworker(x, y, job=job)
+                t.owner = coworker
 
     def create_room(self, room, rtype, flip):
 
         rows = [list(r) for r in room_types[rtype]]
-        print(rtype, flip)
-        print([x for x in range(room.x1, room.x2 + 1)])
-        print([x for x in range(room.y1, room.y2 + 1)])
+        # print(rtype, flip)
+        # print([x for x in range(room.x1, room.x2 + 1)])
+        # print([x for x in range(room.y1, room.y2 + 1)])
         for x in range(room.x1, room.x2 + 1):
             for y in range(room.y1, room.y2 + 1):
                 try:
@@ -282,10 +235,6 @@ class MapGenerator():
                 if not val:
                     continue
 
-                elif val == "~":
-                    self.get_tile(x, y).ttype = "grass"
-                    obj = game_objects[val]
-                    self.game.create_object(x, y, obj)
                 elif val == "M" and "bath" in rtype:
                     obj = game_objects["Mens"]
                     self.game.create_object(x, y, obj)
@@ -295,70 +244,42 @@ class MapGenerator():
                 else:
                     obj = game_objects[val]
                     self.game.create_object(x, y, obj)
-        print(f"Created Room => x: {room.x1} y: {room.y1} w: {room.w} h: {room.h} x2: {room.x2} y2: {room.y2}")
+        print(f"Creating Room => x: {room.x1} y: {room.y1} w: {room.w} h: {room.h} x2: {room.x2} y2: {room.y2}")
 
     def place_doors(self, room):
         # Placing Doors
         possible_doors = []
-        # TODO:  Redo this business and drop ttype altogether
-        for x in range(room.x1 + 1, room.x2):
-            if (
-                not self.tiles[x][room.y1 + 1].blocked
-                and not self.tiles[x][room.y1 - 1].blocked
-                and self.tiles[x][room.y1 + 1].ttype != "grass"
-                and self.tiles[x][room.y1 - 1].ttype != "grass"
-            ):
-                possible_doors.append((x, room.y1))
+        exterior_wall_coords = self.interior.edges()
+        for x in range(room.x1, room.x2 + 1):
+            for y_coord in (room.y1, room.y2):
+                if (
+                    not self.tiles[x][y_coord + 1].blocked
+                    and not self.tiles[x][y_coord - 1].blocked
+                ):
+                    possible_doors.append((x, y_coord))
 
-            if (
-                not self.tiles[x][room.y2 + 1].blocked
-                and not self.tiles[x][room.y2 - 1].blocked
-                and self.tiles[x][room.y2 + 1].ttype != "grass"
-                and self.tiles[x][room.y2 - 1].ttype != "grass"
-            ):
-                possible_doors.append((x, room.y2))
+        for y in range(room.y1, room.y2 + 1):
+            for x_coord in (room.x1, room.x2):
+                if (
+                    not self.tiles[x_coord + 1][y].blocked
+                    and not self.tiles[x_coord - 1][y].blocked
+                ):
+                    possible_doors.append((x_coord, y))
 
-        for y in range(room.y1 + 1, room.y2):
-            if (
-                not self.tiles[room.x1 + 1][y].blocked
-                and not self.tiles[room.x1 - 1][y].blocked
-                and self.tiles[room.x1 - 1][y].ttype != "grass"
-                and self.tiles[room.x1 + 1][y].ttype != "grass"
-            ):
-                possible_doors.append((room.x1, y))
+        possible_doors = list(filter(lambda x: x not in exterior_wall_coords, possible_doors))
+        door_a = random.randrange(0, len(possible_doors))
+        door_a = possible_doors.pop(door_a)
+        door_b = random.randrange(0, len(possible_doors))
+        door_b = possible_doors.pop(door_b)
 
-            if (
-                not self.tiles[room.x2 + 1][y].blocked
-                and not self.tiles[room.x2 - 1][y].blocked
-                and self.tiles[room.x2 - 1][y].ttype != "grass"
-                and self.tiles[room.x2 + 1][y].ttype != "grass"
-            ):
-                possible_doors.append((room.x2, y))
-
-        if not possible_doors:
-            print("Room with No doors...")
-            return None
-
-        door_index_a = random.randrange(0, len(possible_doors))
-        door_index_b = random.randrange(0, len(possible_doors))
-        if possible_doors != []:
-            x = possible_doors[door_index_a][0]
-            y = possible_doors[door_index_a][1]
+        for door in (door_a, door_b):
+            x, y = door
             obj = game_objects["+"]
 
             # Removing wall prior to door placement
             door_tile = self.game.get_tile(x, y)
-            walls = [x for x in door_tile.contents if x.name == "Wall"]
-            if walls:
-                self.game.delete_object(walls[0])
-            self.game.create_object(x, y, obj)
-
-            x = possible_doors[door_index_b][0]
-            y = possible_doors[door_index_b][1]
-            door_tile = self.game.get_tile(x, y)
-            walls = [x for x in door_tile.contents if x.name == "Wall"]
-            if walls:
-                self.game.delete_object(walls[0])
+            for wall in filter(lambda x: x.name == "Wall", door_tile.contents):
+                self.game.delete_object(wall)
             self.game.create_object(x, y, obj)
 
     def create_hall(self, hall):
@@ -368,6 +289,9 @@ class MapGenerator():
                 self.tiles[x][y].block_sight = False
 
     def room_fill(self, x, y, max_w):
+        # TODO: No longer used at present, but the idea of
+        # Squeezing rooms into open places may be useful
+        # leaving here for now.
         possible_rooms = []
         for r in room_types:
             w = len(room_types[r][0])
@@ -375,25 +299,15 @@ class MapGenerator():
 
             if w > max_w and h > max_w:
                 continue
-            elif w > max_w and h <= max_w:
+            elif h <= max_w:
                 new_room = Rect(x, y, h, w)
                 if new_room.y2 < self.interior.y2:
                     flip = random.randint(0, 50)
-                    possible_rooms.append((new_room, r, flip, "man_rotate"))
+                    possible_rooms.append((new_room, r, flip))
             elif w <= max_w and h > max_w:
                 new_room = Rect(x, y, w, h)
                 if new_room.y2 < self.interior.y2:
                     flip = random.randint(50, 100)
-                    possible_rooms.append((new_room, r, flip, "man_nat"))
-            else:
-                flip = random.randint(0, 100)
-                if flip < 50:
-                    new_room = Rect(x, y, h, w)
-                    if new_room.y2 < self.interior.y2:
-                        possible_rooms.append((new_room, r, flip, "auto_rotate"))
-                else:
-                    new_room = Rect(x, y, w, h)
-                    if new_room.y2 < self.interior.y2:
-                        possible_rooms.append((new_room, r, flip, "auto_nat"))
+                    possible_rooms.append((new_room, r, flip))
 
         return possible_rooms

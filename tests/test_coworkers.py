@@ -34,3 +34,11 @@ class TestCoworkerClass(BaseTestCase):
         self.assertTrue("Test" not in [x.name for x in self.game.world_objs[ObjType.mob]])
         self.assertEqual(len(self.game.find_objs("Test")), 0)
         self.assertEqual(len(self.game.find_objs("Corpse")), 1)
+
+    def test_quit_trigger(self):
+        self.assertTrue("Test" in [x.name for x in self.game.world_objs[ObjType.mob]])
+        self.coworker.mood = 0
+        self.coworker.tick_needs()
+        self.assertTrue("Test" not in [x.name for x in self.game.world_objs[ObjType.mob]])
+        self.assertEqual(len(self.game.find_objs("Test")), 0)
+        self.assertEqual(len(self.game.find_objs("Corpse")), 1)
