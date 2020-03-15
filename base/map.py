@@ -1,3 +1,6 @@
+from functools import reduce
+
+
 class Tile():
     """
     Class defining game tiles
@@ -43,7 +46,8 @@ class Rect():
      - (x1, y1): upper left corner
      - (x2, y2): lower right corner
     """
-    def __init__(self, x, y, w, h):
+    def __init__(self, game_map, x, y, w, h, name="", flip=0):
+        self.game_map = game_map
         self.x1 = x
         self.y1 = y
 
@@ -53,6 +57,12 @@ class Rect():
         # Minus 1 since passed coord should be included
         self.x2 = x + w - 1
         self.y2 = y + h - 1
+
+        self.name = name
+        self.flip = flip
+
+    def __str__(self):
+        return f"{self.name}: upper_left=({self.x1},{self.y1}, lower_right=({self.x2}, {self.y2})"
 
     # Center and Intersect used during world gen
     def center(self):
@@ -81,10 +91,17 @@ class Rect():
             edges.append((self.x2, y))
         return edges
 
-    def get_tiles(self):
+    def get_tile_coords(self):
         # Returns list of all coords in room, including walls
         all_tiles = []
         for x in range(self.x1, self.x2 + 1):
             for y in range(self.y1, self.y2 + 1):
                 all_tiles.append((x, y))
         return all_tiles
+
+    def get_tiles(self):
+        for coord in self.get_tile_coords():
+            yield self.game_map.get_tile(*coord)
+
+    def get_contents(self):
+        return reduce(lambda x, y: x + y, [x.contents for x in self.get_tiles()], [])

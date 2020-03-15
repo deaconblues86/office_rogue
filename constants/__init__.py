@@ -1,35 +1,13 @@
 import json
 from collections import defaultdict
-from base.map import Rect
 
-ROOM_SECTOR_X = 18
-ROOM_SECTOR_Y = 22
-HALL_WIDTH = 3
-OUTSIDE_BORDER = 4
 
-TURN_COUNT = 0
+REQUIRED_OBJECTS = {"Terminal": 5, "Toilet": 1, "Coffee Maker": 1, "Vending Machine": 1}
+LIMITED_ROOMS = ["manager", "patio"]
 
-MAX_ROOMS = 4
-MAP_WIDTH = 0
-MAP_HEIGHT = 0
-
-LIMITED_ROOMS = ['manager', 'patio']
-COWORKERS = []
-
-# Defining Building Space
-interior_x = int(MAX_ROOMS * (ROOM_SECTOR_X + HALL_WIDTH)) - HALL_WIDTH
-interior_y = int((MAX_ROOMS / 2) * (ROOM_SECTOR_Y + HALL_WIDTH)) - HALL_WIDTH
-
-interiorRect = Rect(OUTSIDE_BORDER, OUTSIDE_BORDER, interior_x, interior_y)
-
-# Adding Outdoor Space
-map_width = interior_x + (OUTSIDE_BORDER * 2)
-map_height = interior_y + (OUTSIDE_BORDER * 2)
-
-# Adding Padding to Screen to allow for UI
-screen_width = map_width + 16
-screen_height = map_height + 7
-
+# TODO: Depending on how big map can get, may have reasses player movement
+SCREEN_WIDTH = 105
+SCREEN_HEIGHT = 62
 BAR_WIDTH = 20
 STATS = [
     ("work", "green"),
@@ -43,7 +21,7 @@ STATS = [
 ]
 
 MSG_HEIGHT = 6
-msg_width = screen_width - BAR_WIDTH - 2
+MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
 
 # Max lines of message history to keep
 MAX_HISTORY = 50

@@ -228,8 +228,12 @@ class ActionCenter():
                 continue
 
             # If target is known to be broken, skip it
-            if target in self.mob.memories.broken_items:
+            elif target in self.mob.memories.broken_items:
                 continue
+
+            # If target is adjacent, definitely closest
+            elif target in self.mob.adjacent():
+                return target
 
             # TODO: Dropped as the crow flies eval for actual path.  Depending on Cost, may have to redo
             path = self.mob.calculate_target_path(target_obj=target)

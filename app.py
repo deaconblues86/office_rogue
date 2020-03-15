@@ -4,7 +4,7 @@ import tcod.event as Event
 from base.game import Dispatcher, GameInstance
 from base.renderer import Renderer
 from base.map_gen import MapGenerator
-from constants import screen_width, screen_height
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 # Setup the font.
 tcod.console_set_custom_font(
@@ -14,7 +14,7 @@ tcod.console_set_custom_font(
 
 # Initialize the root console in a context.
 with tcod.console_init_root(
-    screen_width, screen_height, order="F", renderer=tcod.RENDERER_SDL2, vsync=True
+    SCREEN_WIDTH, SCREEN_HEIGHT, order="F", renderer=tcod.RENDERER_SDL2, vsync=True
 ) as root_console:
     game = GameInstance()
     renderer = Renderer(game, root_console)

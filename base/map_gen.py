@@ -2,17 +2,14 @@ import random
 import tcod
 from math import ceil
 from numpy import array
+from functools import reduce
 from constants import (
     room_types,
     game_objects,
     game_jobs,
-    interiorRect,
-    HALL_WIDTH,
     LIMITED_ROOMS,
-    map_width,
-    map_height
+    REQUIRED_OBJECTS,
 )
-from base.enums import ObjType
 from base.map import Rect, Tile
 
 
@@ -59,13 +56,24 @@ class MapGenerator():
      - TODO: May make sense if multiple maps need to exist simultaneously.  Each
        could maintain their own tiles and reduce churn over expanding list of tiles
     """
+    outside_border = 4
+    hall_width = 3
+    interior_x = 81
+    interior_y = 47
+
+    # Adding Outdoor Space
+    map_width = interior_x + (outside_border * 2)
+    map_height = interior_y + (outside_border * 2)
+
     def __init__(self, game):
         self.game = game
         self.game.game_map = self
         self.tiles = []
+        self.rooms = []
         self.fov_map = None
         self.path_map = None
-        self.interior = interiorRect
+        self.interior = Rect(self, self.outside_border, self.outside_border, self.interior_x, self.interior_y)
+        print(self.interior)
 
     def place_object(self, obj):
         # Places object in tile and updates path_map
@@ -109,70 +117,31 @@ class MapGenerator():
 
     def generate_map(self):
         self.tiles = [
-            [Tile(x, y) for y in range(map_height)]
-            for x in range(map_width)
+            [Tile(x, y) for y in range(self.map_height)]
+            for x in range(self.map_width)
         ]
 
-        inside_tiles = self.interior.get_tiles()
-        for x in range(map_width):
-            for y in range(map_height):
+        inside_tiles = self.interior.get_tile_coords()
+        for x in range(self.map_width):
+            for y in range(self.map_height):
                 if (x, y) not in inside_tiles:
                     obj = game_objects["~"]
                     self.game.create_object(x, y, obj)
 
-        for coord in self.interior.edges():
+        success = False
+        while not success:
+            self.delete_rooms()
+            success = self.generate_rooms(room_types)
+
+        # Fill in any holes in exterior walls after creating rooms:
+        for coord in filter(
+            lambda x: "Wall" not in [x.name for x in self.get_tile(*x).contents], self.interior.edges()
+        ):
             obj = game_objects["#"]
             self.game.create_object(coord[0], coord[1], obj)
 
-        x = self.interior.x1
-        y = self.interior.y1
-
-        rooms = []
-        max_row_height = 0
-        room_names = list(room_types)
-        while True:
-            # If we've moved beyond the interior space or have exhausted all rooms trying to fit more in
-            # time to break out
-            if y > self.interior.y2 or not room_names:
-                break
-
-            room_index = random.randrange(0, len(room_names))
-            rtype = room_names[room_index]
-
-            w = len(room_types[rtype][0])
-            h = len(room_types[rtype])
-
-            flip = random.randint(0, 100)
-
-            if flip < 50:
-                new_room = Rect(x, y, h, w)
-            else:
-                new_room = Rect(x, y, w, h)
-
-            # If the rooms have moved beyond the interior space, go to next row
-            # Reset X coord and reposition Y
-            if new_room.x2 > self.interior.x2:
-                x = self.interior.x1
-                y += max_row_height + HALL_WIDTH
-                max_row_height = 0
-                continue
-
-            # If Y's too great, pop it from list cause it'll never fit again
-            # and try again
-            elif new_room.y2 > self.interior.y2:
-                room_names.pop(room_index)
-                continue
-
-            max_row_height = max(max_row_height, new_room.h)
-            rooms.append(new_room)
-            self.create_room(new_room, rtype, flip)
-
-            if rtype in LIMITED_ROOMS:
-                room_names.pop(room_index)
-
-            x = new_room.x2 + HALL_WIDTH + 1
-
-        for room in rooms:
+        print([x.name for x in self.rooms])
+        for room in self.rooms:
             self.place_doors(room)
 
         # Generating path_map prior to coworkers (since they'll be moving)
@@ -194,10 +163,10 @@ class MapGenerator():
 
     def generate_coworkers(self):
         # Generates Player and Coworks and assigned Terminals
-        terminals = [x for x in self.game.world_objs[ObjType["appliance"]] if x.name == 'Terminal']
+        terminals = self.game.find_objs("Terminal")
 
         player_terminal = terminals.pop(0)
-        adj_tiles = [x for x in player_terminal.adjacent() if not x.blocked]
+        adj_tiles = [x for x in self.get_adjacent_tiles(player_terminal) if not x.blocked]
 
         player = self.game.create_coworker(adj_tiles[0].x, adj_tiles[0].y, creating_player=True)
         player_terminal.owner = self.game.player = player
@@ -210,14 +179,81 @@ class MapGenerator():
         print(req_job_counts)
         for job in req_job_counts:
             for worker in range(req_job_counts[job]):
-                t = terminals.pop(0)
+                try:
+                    t = terminals.pop(0)
+                except IndexError:
+                    print(f"Ran out of terminals for {job}")
 
-                adj_tiles = [x for x in t.adjacent() if not x.blocked]
+                adj_tiles = [x for x in self.get_adjacent_tiles(t) if not x.blocked]
                 x = adj_tiles[0].x
                 y = adj_tiles[0].y
 
                 coworker = self.game.create_coworker(x, y, job=job)
                 t.owner = coworker
+
+    def delete_rooms(self):
+        for x in self.rooms:
+            for obj in x.get_contents():
+                self.game.remove_tile_content(obj)
+
+        self.rooms = []
+
+    def generate_rooms(self, room_types):
+        print(f"Generating rooms...")
+        room_names = list(room_types)
+        x = self.interior.x1
+        y = self.interior.y1
+        max_row_height = 0
+
+        while True:
+            # If we've moved beyond the interior space or have exhausted all rooms trying to fit more in
+            # time to break out
+            if y > self.interior.y2 or not room_names:
+                break
+
+            room_index = random.randrange(0, len(room_names))
+            rtype = room_names[room_index]
+
+            w = len(room_types[rtype][0])
+            h = len(room_types[rtype])
+
+            flip = random.randint(0, 100)
+
+            if flip < 50:
+                new_room = Rect(self, x, y, h, w, name=rtype)
+            else:
+                new_room = Rect(self, x, y, w, h, name=rtype)
+
+            # If the rooms have moved beyond the interior space, go to next row
+            # Reset X coord and reposition Y
+            if new_room.x2 > self.interior.x2:
+                x = self.interior.x1
+                y += max_row_height + self.hall_width
+                max_row_height = 0
+                continue
+
+            # If Y's too great, pop it from list cause it'll never fit again
+            # and try again
+            elif new_room.y2 > self.interior.y2:
+                room_names.pop(room_index)
+                continue
+
+            max_row_height = max(max_row_height, new_room.h)
+            self.rooms.append(new_room)
+            self.create_room(new_room, rtype, flip)
+
+            if rtype in LIMITED_ROOMS:
+                room_names.pop(room_index)
+
+            x = new_room.x2 + self.hall_width + 1
+
+        # Verify that generated rooms are playable based on min number of required objects
+        contents = reduce(lambda x, y: x + y, [x.get_contents() for x in self.rooms], [])
+        contents_by_name = [c.name for c in contents if c.name not in ("Wall", "Grass")]
+        if any(count > contents_by_name.count(name) for name, count in REQUIRED_OBJECTS.items()):
+            return False
+
+        return True
 
     def create_room(self, room, rtype, flip):
 
@@ -244,7 +280,8 @@ class MapGenerator():
                 else:
                     obj = game_objects[val]
                     self.game.create_object(x, y, obj)
-        print(f"Creating Room => x: {room.x1} y: {room.y1} w: {room.w} h: {room.h} x2: {room.x2} y2: {room.y2}")
+
+        print(f"Creating Room => {room}")
 
     def place_doors(self, room):
         # Placing Doors
@@ -300,12 +337,12 @@ class MapGenerator():
             if w > max_w and h > max_w:
                 continue
             elif h <= max_w:
-                new_room = Rect(x, y, h, w)
+                new_room = Rect(self, x, y, h, w, name=r)
                 if new_room.y2 < self.interior.y2:
                     flip = random.randint(0, 50)
                     possible_rooms.append((new_room, r, flip))
             elif w <= max_w and h > max_w:
-                new_room = Rect(x, y, w, h)
+                new_room = Rect(self, x, y, w, h, name=r)
                 if new_room.y2 < self.interior.y2:
                     flip = random.randint(50, 100)
                     possible_rooms.append((new_room, r, flip))

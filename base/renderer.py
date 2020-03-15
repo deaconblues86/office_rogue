@@ -2,13 +2,11 @@ import textwrap
 from random import randint
 from tcod.console import Console
 from constants import (
-    screen_width,
-    map_width,
-    map_height,
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
     BAR_WIDTH,
     STATS,
     MSG_HEIGHT,
-    msg_width,
     colors,
 )
 
@@ -18,8 +16,8 @@ class PopUpMenu():
     # - These default values will be reloaded if others not provided
     dest_x = 0
     dest_y = 0
-    popup_width = map_width // 2
-    popup_height = map_height // 2
+    popup_width = 44
+    popup_height = 27
     popup = Console(popup_width, popup_height)
 
     title = "Offscreen Console"
@@ -60,7 +58,7 @@ class PopUpMenu():
     @classmethod
     def load_options(cls, title, msg, options, popup_config=None):
         if not popup_config:
-            cls.load_config(0, 0, map_width // 2, map_height // 2)
+            cls.load_config(0, 0, 44, 27)
         else:
             cls.load_config(**popup_config)
 
@@ -97,6 +95,11 @@ class Renderer():
         self.game = game
         self.root_console = root_console
         self.game.renderer = self
+
+        # Calculating default values based off map attributes
+        self.screen_width = SCREEN_WIDTH
+        self.screen_height = SCREEN_HEIGHT
+        self.msg_width = self.screen_width - BAR_WIDTH - 2
 
         # Creating off screen console for UI - allows for alpha transparency
         self.popup = PopUpMenu
@@ -142,7 +145,7 @@ class Renderer():
 
     def render_bar(self, count, stat, color):
         x = 1
-        y = map_height + count
+        y = self.game.game_map.map_height + count
         val = getattr(self.game.player, stat)
         top = getattr(self.game.player, f"max_{stat}")
         ratio = val / top
@@ -170,12 +173,12 @@ class Renderer():
 
     def render_messages(self):
         x = int(BAR_WIDTH * 2) + 1
-        y = map_height
+        y = self.game.game_map.map_height
 
         # Starting with latest messages, capture as many lines as can be displayed
         rendered_msgs = []
         for msg, color in reversed(self.game.game_msgs):
-            msg_lines = textwrap.wrap(msg, msg_width)
+            msg_lines = textwrap.wrap(msg, self.msg_width)
             rendered_msgs = [(line, color) for line in msg_lines] + rendered_msgs
             if len(rendered_msgs) > MSG_HEIGHT:
                 break
@@ -193,9 +196,9 @@ class Renderer():
         self.popup.load_options(title, msg, [x if isinstance(x, str) else x.name for x in self.game.popup_options])
 
     def render_tasks(self):
-        x = map_width
+        x = self.game.game_map.map_width
         self.root_console.print(x=x, y=0, string="Tasks")
-        self.root_console.print(x=x, y=1, string="-" * (screen_width - map_width))
+        self.root_console.print(x=x, y=1, string="-" * (self.screen_width - self.game.game_map.map_width))
 
         y = 2
         for task in self.game.work_requests:

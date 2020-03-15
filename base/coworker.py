@@ -140,8 +140,8 @@ class Mob(BaseObject):
                 self.broadcast(f"{self.name} can't find a target to perform {self.target_action.name}", debug=True)
                 return
 
-            # Don't really need a path for self
-            if self.target is self:
+            # Don't really need a path for self or adjacent target
+            if self.target is self or self.target in self.adjacent():
                 return
 
             self.path = self.calculate_target_path(self.target)

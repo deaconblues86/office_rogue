@@ -25,7 +25,7 @@ jobs:
         flake8 .
     - name: Test with pytest
       run: |
-        pytest tests tests/
+        pytest --cov=base tests/
     - name: Check complexity with Xenon
       run: |
-        xenon -a A -b B -m B .
+        xenon -a A -b C -m B .

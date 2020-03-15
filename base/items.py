@@ -1,4 +1,5 @@
 from random import randint
+from functools import reduce
 from base.enums import ObjType
 from constants import colors, game_objects
 from utils import eval_obj_state
@@ -56,9 +57,14 @@ class BaseObject():
 
         self.triggers = kwargs.get("triggers", [])
 
+    def __str__(self):
+        return f"Object {self.name} at {self.x}, {self.y}"
+
     def adjacent(self):
-        # Asks GameInstance 'What's Next to Me?
-        return self.game.get_adjacent(self)
+        # Asks GameInstance 'What's Next to Me?' and returns all tile contents
+        adj_tiles = self.game.get_adjacent(self)
+        adj_objects = reduce(lambda x, y: x + y, [x.contents for x in adj_tiles], [])
+        return adj_objects
 
     @property
     def broken(self):
