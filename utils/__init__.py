@@ -1,3 +1,4 @@
+import json
 from constants import game_states
 
 
@@ -7,6 +8,18 @@ operators = {
     "greater_or_equal": lambda x, y: x >= y,
     "not_equal": lambda x, y: x != y,
 }
+
+
+class WrappedEncoder(json.JSONEncoder):
+    """
+    Wrapping default JSON encoder to at least try converting
+    custom objects to strings
+    """
+    def default(self, obj):
+        try:
+            return json.JSONEncoder.default(self, obj)
+        except TypeError:
+            return repr(obj)
 
 
 def eval_obj_state(obj, state_name=None):

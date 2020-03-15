@@ -73,7 +73,6 @@ class MapGenerator():
         self.fov_map = None
         self.path_map = None
         self.interior = Rect(self, self.outside_border, self.outside_border, self.interior_x, self.interior_y)
-        print(self.interior)
 
     def place_object(self, obj):
         # Places object in tile and updates path_map
@@ -140,7 +139,6 @@ class MapGenerator():
             obj = game_objects["#"]
             self.game.create_object(coord[0], coord[1], obj)
 
-        print([x.name for x in self.rooms])
         for room in self.rooms:
             self.place_doors(room)
 
@@ -199,7 +197,6 @@ class MapGenerator():
         self.rooms = []
 
     def generate_rooms(self, room_types):
-        print(f"Generating rooms...")
         room_names = list(room_types)
         x = self.interior.x1
         y = self.interior.y1
@@ -258,9 +255,6 @@ class MapGenerator():
     def create_room(self, room, rtype, flip):
 
         rows = [list(r) for r in room_types[rtype]]
-        # print(rtype, flip)
-        # print([x for x in range(room.x1, room.x2 + 1)])
-        # print([x for x in range(room.y1, room.y2 + 1)])
         for x in range(room.x1, room.x2 + 1):
             for y in range(room.y1, room.y2 + 1):
                 try:
@@ -281,7 +275,7 @@ class MapGenerator():
                     obj = game_objects[val]
                     self.game.create_object(x, y, obj)
 
-        print(f"Creating Room => {room}")
+        # print(f"Creating Room => {room}")
 
     def place_doors(self, room):
         # Placing Doors

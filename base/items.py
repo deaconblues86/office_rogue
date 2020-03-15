@@ -58,7 +58,10 @@ class BaseObject():
         self.triggers = kwargs.get("triggers", [])
 
     def __str__(self):
-        return f"Object {self.name} at {self.x}, {self.y}"
+        return f"{self.name} at {self.x}, {self.y}"
+
+    def __repr__(self):
+        return f"Object: {self.name}"
 
     def adjacent(self):
         # Asks GameInstance 'What's Next to Me?' and returns all tile contents

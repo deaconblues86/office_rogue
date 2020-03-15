@@ -94,6 +94,11 @@ class Mob(BaseObject):
         # Returns current tasks from Memories
         return self.memories.work_tasks
 
+    def no_target_available(self):
+        # Marks action as unavailable when no target can be found
+        self.memories.add_unavailable(self.target_action)
+        self.target_action = None
+
     def broken_target(self, broken_obj=None):
         # Marks target as broken in memory
         broken_obj = broken_obj or self.target
@@ -137,25 +142,24 @@ class Mob(BaseObject):
         if not self.target:
             self.target = self.action_center.find_target(self.target_action)
             if not self.target:
-                self.broadcast(f"{self.name} can't find a target to perform {self.target_action.name}", debug=True)
+                self.broadcast(f"{self.name} can't find a target to perform {self.target_action}", debug=True)
+                self.no_target_available()
                 return
 
             # Don't really need a path for self or adjacent target
             if self.target is self or self.target in self.adjacent():
                 return
 
-            self.path = self.calculate_target_path(self.target)
+            self.path = self.calculate_target_path()
             if not self.path:
-                self.broadcast(
-                    f"{self.name} can't path to {self.target.name} {self.target.x}, {self.target.y}", debug=True
-                )
+                self.broadcast(f"{self.name} can't path to {self.target}", debug=True)
                 self.target = None
 
-    def calculate_target_path(self, target_obj=None):
+    def calculate_target_path(self):
         """
         Asks GameInstance for path to target. If target now blocked, nothing will be returned.
         """
-        path_target = target_obj or self.target
+        path_target = self.target
         path = self.game.find_path(self, path_target)
 
         return path

@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 from functools import reduce
 from constants import game_actions, game_objects
@@ -18,12 +19,17 @@ class Action():
         self.satisfies = satisfies
 
         # Initializing Action requirements
-        self.actor_job = requires.get("job", None)              # Required Job to peform actions
-        self.req_task = requires.get("target_task", False)      # Target will raise it's own alarm OR
+        # Required Job to peform actions
+        self.actor_job = requires.get("job", None)
 
-        self.req_object = requires.get("target", None)          # Target is specified by object name OR
-        self.req_tag = requires.get("target_tag", None)         # Target is specified by generalized object tag
-        self.req_appliance = self.req_object or self.req_tag    # Normalized Required Target
+        # Target will raise it's own alarm OR
+        # Target is specified by object name OR
+        # Target is specified by generalized object tag
+        #  - req_appliance: mormalizes above required target object requirememts
+        self.req_task = requires.get("target_task", False)
+        self.req_object = requires.get("target", None)
+        self.req_tag = requires.get("target_tag", None)
+        self.req_appliance = self.req_task or self.req_object or self.req_tag
 
         self.req_state = requires.get("target_state", None)     # Target requires a certain state
 
@@ -46,10 +52,16 @@ class Action():
 
         self.effects = effects
 
+    def __str__(self):
+        return f"{self.name} action"
+
+    def __repr__(self):
+        return f"Action: {self.name} of {self.actor}"
+
     def find_targets(self):
         if not self.req_appliance:
             return self.actor
-        elif self.producers:
+        if self.producers:
             # Build a dictionary of possible producers/vendors that sell goods actor wants
             possible_vendors = {
                 x: len([good for good in self.actor.memories.wanted_items if good in self.producers[x]])
@@ -133,11 +145,14 @@ class Action():
 class ActionCenter():
     def __init__(self, mob):
         self.mob = mob
-        # Initilizes Actions based on mob's job
-        self.actions = filter(lambda x: not x.get("job", None) or x.get("job", None) == mob.job, game_actions.values())
-        self.actions = list(
-            map(lambda x: Action(actor=self.mob, **x), self.actions)
+        # Initialize all game actions which will then be trued up based on coworkers job
+        self.all_actions = list(
+            map(lambda x: Action(actor=self.mob, **x), game_actions.values())
         )
+        self.true_up_actions()
+
+    def true_up_actions(self):
+        self.actions = [x for x in self.all_actions if not x.actor_job or x.actor_job == self.mob.job]
 
     def available_actions(self, target_object):
         return list(
@@ -148,7 +163,9 @@ class ActionCenter():
         possible_actions = []
         target_action = None
         # Starting from actions that satisfy need (lowest level)
-        for action in filter(lambda x: need in x.satisfies, self.actions):
+        for action in filter(
+            lambda x: need in x.satisfies and x not in self.mob.memories.unavailable_actions, self.actions
+        ):
             missing_reagents = action.missing_reagents()
 
             # If we have everything we required for what we need, we're good
@@ -200,6 +217,9 @@ class ActionCenter():
             print(task_list)
             possible_task_lists[possible_action] = task_list
 
+        if not possible_task_lists:
+            return None
+
         # Weighing options only by number of tasks for now
         winner = sorted(possible_task_lists, key=lambda x: len(possible_task_lists[x]))[0]
         task_list = possible_task_lists[winner]
@@ -235,10 +255,13 @@ class ActionCenter():
             elif target in self.mob.adjacent():
                 return target
 
-            # TODO: Dropped as the crow flies eval for actual path.  Depending on Cost, may have to redo
-            path = self.mob.calculate_target_path(target_obj=target)
-            if path and len(path) < min_distance:
-                min_distance = len(path)
+            # TODO: Dropped path eval for as the crow flies to separate the
+            # resence of obj vs. ability to path to it
+            dx = target.x - self.mob.x
+            dy = target.y - self.mob.y
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance < min_distance:
+                min_distance = distance
                 closest = target
 
         return closest
@@ -261,27 +284,45 @@ class Thought():
 class Memories():
     def __init__(self, mob):
         self.mob = mob
+        self.unavailable_actions = []
         self.broken_items = []
         self.wanted_items = []
         self.work_tasks = []
         self.thoughts = []
-        self.relationships = []
-        self.iters = 0
+        self.relationships = {}
+        self.broken_cycle = 0
 
     def tick_memories(self):
         """
-        Every 20 turns, remove oldest item found to be broken,
-        tick thought lifetimes, apply modifiers, and remove timed out thoughts
+        Every 15 cycles, 1 cycle == 6 game turns, remove oldest item found to be broken
+        Tick thought lifetimes, apply modifiers, and remove timed out thoughts
         """
-        self.iters += 1
-        if not self.iters % 20:
+        self.broken_cycle += 1
+        if self.broken_cycle == 15:
+            self.broken_cycle = 0
             if self.broken_items:
                 self.broken_items.pop(0)
-            for thought in self.thoughts:
-                thought.apply_modifier(self.mob)
-                thought.duration -= 1
-            self.thoughts = [t for t in self.thoughts if t.duration <= 0]
-            self.iters = 0
+            if self.unavailable_actions:
+                self.unavailable_actions.pop(0)
+
+        for thought in self.thoughts:
+            thought.apply_modifier(self.mob)
+            thought.duration -= 1
+        self.thoughts = [t for t in self.thoughts if t.duration <= 0]
+
+    def add_unavailable(self, obj):
+        """
+        Try to pop already found action with no available target from list if present
+        Add unavailable action object to end of list
+        - pop done to "refresh" memory
+        """
+        try:
+            i = self.unavailable_actions.index(obj)
+            self.unavailable_actions.pop(i)
+        except ValueError:
+            pass
+        finally:
+            self.unavailable_actions.append(obj)
 
     def add_broken(self, obj):
         """
