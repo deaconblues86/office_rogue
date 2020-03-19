@@ -9,6 +9,7 @@ class Mob(BaseObject):
      - includes ticking needs, managing AI decisions
     """
     max_inventory = 4
+    boredom_threshold = 5
 
     def __init__(self, needs, social, hunger, thirst, bladder, bowels, energy, gender, job, tags, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -153,7 +154,7 @@ class Mob(BaseObject):
             self.path = self.calculate_target_path()
             if not self.path:
                 self.broadcast(f"{self.name} can't path to {self.target}", debug=True)
-                self.target = None
+                self.broken_target()
 
     def calculate_target_path(self):
         """

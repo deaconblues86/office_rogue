@@ -145,6 +145,7 @@ class Action():
 class ActionCenter():
     def __init__(self, mob):
         self.mob = mob
+        # TODO: Usage of this could be expanded based on other criteria besides job
         # Initialize all game actions which will then be trued up based on coworkers job
         self.all_actions = list(
             map(lambda x: Action(actor=self.mob, **x), game_actions.values())
@@ -276,9 +277,7 @@ class Thought():
         self.modifier = modifier
 
     def apply_modifier(self, target):
-        attr = getattr(target, self.target_stat)
-        attr += self.modifier
-        setattr(target, self.target_stat, attr)
+        target.apply_modifier(self.modifier)
 
 
 class Memories():
