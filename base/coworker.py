@@ -125,7 +125,7 @@ class Mob(BaseObject):
          - Finds target for current action if no target's in mind
         """
         if not self.target_action:
-            if self.memories.work_tasks:
+            if self.get_tasks():
                 self.target_action = self.memories.start_next_job()
             else:
                 # TODO: Will need to add social back to coworker def at some point
@@ -273,11 +273,17 @@ class Mob(BaseObject):
                 )
 
     def perform_action(self, player_action=None):
-        ''' Called by AI when satisfying need & based on player choice as the popup callback function '''
-        # If the target can be used, lets do it
-        # Otherwise, lose it and something new will be chosen
+        '''
+        Called by AI when satisfying need & based on player choice as the popup callback function
+         - If the target can be used, lets do it (init_action())
+            - action will be logged in both action_center (for tracking usage) and game (for rendering/ticking duration)
+         - Otherwise, lose it and something new will be chosen
+            - can_use() marks target as broken by calling Mob's broken_target method
+         - If this is a player action, be sure to close popups/destroy cursor
+        '''
         self.target_action = player_action or self.target_action
-        if self.target.can_use(self):
+        if self.target_action.usage_override or self.target.can_use(self):
+            self.action_center.log_action_performed(self.target_action)
             self.game.log_action(player_action or self.target_action)
             self.target_action.init_action()
 

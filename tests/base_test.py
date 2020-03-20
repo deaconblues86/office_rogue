@@ -3,11 +3,7 @@ from unittest import TestCase
 from unittest.mock import patch
 from base.game import GameInstance
 from base.map_gen import MapGenerator
-from utils import WrappedEncoder
-
-
-def object_dumps(obj):
-    return json.dumps(obj, cls=WrappedEncoder)
+from utils import object_dumps
 
 
 def message_patch(game, *args, **kwargs):
@@ -21,7 +17,7 @@ def message_patch(game, *args, **kwargs):
 class BaseTestCase(TestCase):
     def setUp(self):
         self.game = GameInstance()
-        self.game.debugging = True
+        self.game.debugging = self.game.testing = True
         self.map_gen = MapGenerator(self.game)
 
         self.map_gen.generate_map()

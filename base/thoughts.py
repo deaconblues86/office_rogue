@@ -1,15 +1,18 @@
 import math
-from collections import defaultdict
 from functools import reduce
 from constants import game_actions, game_objects
-from utils import search_by_obj, search_by_tag, eval_obj_state
+from utils import search_by_obj, search_by_tag, eval_obj_state, object_dumps
 
 
 class Action():
-    def __init__(self, actor, name, chars, color, duration, satisfies=[], requires=[], effects=[], produces=[]):
+    def __init__(
+        self, actor, name, chars, color, duration,
+        satisfies=[], requires=[], effects=[], produces=[], usage_override=False
+    ):
         self.actor = actor
         self.target = None
         self.reagents = []
+        self.performed_count = 0
 
         # From Action Defs
         self.name = name
@@ -17,8 +20,9 @@ class Action():
         self.color = color
         self.duration = duration
         self.satisfies = satisfies
+        self.effects = effects
 
-        # Initializing Action requirements
+        # Initializing Action requirements:
         # Required Job to peform actions
         self.actor_job = requires.get("job", None)
 
@@ -50,7 +54,10 @@ class Action():
             }
             self.produces = reduce(lambda x, y: x + y, self.producers.values(), [])
 
-        self.effects = effects
+        # Special attribute which signals that typical usage checks (owner, occupied_by, broken, holder)
+        # should be ignored when performing this action.  Cleaning up & repair actions are the only ones thus far
+        # TODO: evaluate if there's a better way or, if this non-specific way, does the job just find
+        self.usage_override = usage_override
 
     def __str__(self):
         return f"{self.name} action"
@@ -145,38 +152,73 @@ class Action():
 class ActionCenter():
     def __init__(self, mob):
         self.mob = mob
-        # TODO: Usage of this could be expanded based on other criteria besides job
         # Initialize all game actions which will then be trued up based on coworkers job
         self.all_actions = list(
             map(lambda x: Action(actor=self.mob, **x), game_actions.values())
         )
+        self.action_categories = {}
         self.true_up_actions()
 
     def true_up_actions(self):
+        """
+        Creates a list of all available actions based on the coworkers job independent of what
+        purpose the action serves.  Especially useful for actions that serve no immediate purpose
+        such as purchasing items.
+        Addtionally, actions will be categorized by need satsified in order to track meta data related to actions
+        such as consecutive usage & boredom
+        """
+        # TODO: Usage of this could be expanded based on other criteria besides job
         self.actions = [x for x in self.all_actions if not x.actor_job or x.actor_job == self.mob.job]
+        # Initial set up
+        for need in self.mob.needs:
+            self.action_categories[need] = {
+                "actions": list(
+                    filter(lambda x: need in x.satisfies, self.actions)
+                ),
+                "last_chosen": None,
+            }
 
     def available_actions(self, target_object):
+        """
+        Method used to report to UI what the player may do with target object based on the object
+        itself and what's currently in their inventory
+        """
         return list(
             filter(lambda x: x.valid_target(target_object) and not x.missing_reagents(), self.actions)
         )
 
+    def log_action_performed(self, action):
+        """
+        When Mob performs action, save it as last_performed for satsified Need
+        - If it's the same action as last time advancem action's performed count
+        - All others will decay performed count floored at zero
+        """
+        if self.mob is not self.mob.game.player:
+            if self.action_categories[self.mob.satisfying]["last_chosen"] == action.name:
+                action.performed_count += 1
+            self.action_categories[self.mob.satisfying]["last_chosen"] = action.name
+            for other_action in self.action_categories[self.mob.satisfying]["actions"]:
+                if other_action is not action:
+                    other_action.performed_count = max(other_action.performed_count - 1, 0)
+
     def find_action(self, need):
-        possible_actions = []
-        target_action = None
-        # Starting from actions that satisfy need (lowest level)
-        for action in filter(
-            lambda x: need in x.satisfies and x not in self.mob.memories.unavailable_actions, self.actions
-        ):
-            missing_reagents = action.missing_reagents()
+        """
+        Starting from actions that satisfy need, the lowest level, collect pertinent information in order to decide
+        what to do
+        """
+        action_category = self.action_categories[need]
+        possible_actions = [
+            {
+                "action": action,
+                "missing_reagents": action.missing_reagents(),
+                "last_performed": action_category["last_chosen"] == action.name,
+                "performed": action.performed_count,
+            }
+            for action in action_category["actions"]
+            if action not in self.mob.memories.unavailable_actions
+        ]
 
-            # If we have everything we required for what we need, we're good
-            if not missing_reagents:
-                target_action = action
-                break
-
-            possible_actions.append((action, missing_reagents))
-        else:
-            target_action = self.walk_options(possible_actions)
+        target_action = self.walk_options(possible_actions)
 
         return target_action
 
@@ -210,29 +252,33 @@ class ActionCenter():
         """
         This is where we need to dive through the action tree to figure out the most efficient option
         """
-        possible_task_lists = defaultdict(list)
-        for possible_action, missing_reagents in possibilites:
-            print(possible_action.name)
-            task_list = self.walk_action(possible_action, missing_reagents)
-            task_list.reverse()
-            print(task_list)
-            possible_task_lists[possible_action] = task_list
-
-        if not possible_task_lists:
+        if not possibilites:
             return None
 
-        # Weighing options only by number of tasks for now
-        winner = sorted(possible_task_lists, key=lambda x: len(possible_task_lists[x]))[0]
-        task_list = possible_task_lists[winner]
+        for action_details in possibilites:
+            possible_action = action_details["action"]
+            task_list = self.walk_action(possible_action, action_details["missing_reagents"])
+            task_list.reverse()
+            action_efficiency = (
+                len(task_list) + action_details["performed"] - len(self.mob.game.find_tasks(possible_action.name))
+            )
+            action_details["task_list"] = task_list
+            action_details["action_efficiency"] = action_efficiency
+
+        # TODO: Remove this when ready
+        if self.mob.game.debugging:
+            print(object_dumps(possibilites))
+
+        winner = sorted(possibilites, key=lambda x: x["action_efficiency"])[0]
+        task_list = winner["task_list"]
 
         # If we have nested actions, store task list, store missing reagents, & return first item
         if task_list:
             self.store_tasks([task[0] for task in task_list[1:]])
             self.store_missing_reagents(reduce(lambda x, y: x + y, [task[1] for task in task_list], []))
-            first_task = task_list[0][0]
-            return first_task
-        else:
-            return winner
+            winner = task_list[0][0]
+
+        return winner
 
     def determine_closest(self, targets):
         """

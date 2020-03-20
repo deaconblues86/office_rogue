@@ -27,7 +27,8 @@
         "effects": [
             {"hits": "actor", "stat": "work", "mod_type": "modifier", "value": 50},
             {"hits": "target", "func": "destroy"}
-        ]
+        ],
+        "usage_override": true
     },
     "repairing": {
         "name": "repairing",
@@ -42,7 +43,8 @@
         "effects":[
             {"hits": "actor", "stat": "work", "mod_type": "modifier", "value": 50},
             {"hits": "target", "stat": "durability", "mod_type": "new_value", "value": 100}
-        ]
+        ],
+        "usage_override": true
     },
     "servicing_terminal": {
         "name": "servicing_terminal",

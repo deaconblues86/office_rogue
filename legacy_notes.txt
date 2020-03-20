@@ -1,0 +1,73 @@
+#----------------------------
+# General Notes
+#----------------------------
+
+#Maintain Needs -- social, hunger, energy, happiness, thirst, bladder, bowels, work
+Still need to handle happiness
+happiness -- Total of others weighted on preference.  Add other sources (crusing internet)?
+# energy -- impacts move speed and work
+# Social, hunger, thirst, bladder bowels -- declines based on stats.  Refilled once satisfied -- amount for thirst, hunger, social based on satisfaction.  Bowels and ballder decreased on consumption 
+Need to tweak decline
+# Must meet work expectations
+
+Items:  Limit inventory to two
+Coffee
+water
+chips
+soda
+flavored water
+tea
+pizza
+sandwich
+microwavable lunch
+leftovers
+
+Traits: Have some functions that handle a few of these.  Not implemented and should be data driven
+Lazy - Productivity inversely impacts happiness
+Chatty - Needs more social
+Sluggish - Loses energy fster
+workaholic - Productivity buff, loses happiness faster when not gaining Productivity
+Caffine addict - loses happiness faster when not caffinated (implies status effects)
+Rude - Decreases relationships during social
+Charming - Increases relationships during social
+atractive - increase to min relationship
+
+-establish relationships based on traits and likes
+
+Status:
+Caffinated - Increased work gain
+Crashing - Decreases work gain
+Depressed - Decreases work gain
+Sick - Decreases work gain.  Vomiting. Infectious
+
+
+Likes: Should be data driven and not hard coded
+work, movies, pina coladas, Hugh Grant, TV, sports, music, video games, rouge-likes, ASCII graphics, cars, motorcycles, fashion, drinking, dancing
+
+Worker Types: Impacts base stats and has special roles in office
+Manager - NPC who rules over all
+Developer - Can improve terminal to incease Productivity/reduce energy drain
+Marketing
+HR - improve relationship with a chosen coworker
+Finance
+Sales
+Consulting
+Operations
+IT - Restores worn out terminals
+Cleaning staff - cleans toilets, urine, poo -- blocks bathroom when cleaning -- should have a cart to push around
+Repair Man - services broken appliances
+
+Durability:
+Terminal - fixed by IT
+Desk - fixed by getting supplies from supply closet
+Appliances - fixed by repair man <-- Means you need an object type tag for refactoring to handle repairs
+
+#----------------------------
+# Refactoring
+#----------------------------
+
+Maybe further refine search by checking for objects that can statisfy multiple needs at the same time (i.e.coffee)
+Messages are good, could be spruced up, but will need a way to limit to FOV when time comes
+Currently no logic for AI to manage inventory -- Theyll atleast use whats in their inventory first & dump trash
+
+

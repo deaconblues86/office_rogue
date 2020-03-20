@@ -99,6 +99,7 @@ class Cursor():
 class GameInstance():
     def __init__(self):
         self.debugging = False
+        self.testing = False
 
         self.world_objs = {
             ObjType.static: [],
@@ -236,7 +237,8 @@ class GameInstance():
 
     def complete_action(self, action):
         self.actions = [x for x in self.actions if x is not action]
-        del self.renderer.action_cache[action]
+        if not self.testing:
+            del self.renderer.action_cache[action]
 
     def log_request(self, obj, request_action):
         '''
@@ -258,9 +260,12 @@ class GameInstance():
 
     def log_message(self, new_msg, color="white", debug=False):
         """ Appends message to list of game messages w/ color and trims history """
-        if debug and self.debugging:
-            print(new_msg)
+        if self.debugging:
             self.game_debug_msgs.append(new_msg)
+
+        if debug:
+            print(new_msg)
+            return
 
         self.game_msgs.append((new_msg, color))
         self.game_msgs = self.game_msgs[-1 * MAX_HISTORY:]
@@ -288,7 +293,6 @@ class GameInstance():
             params["gender"] = "male"
             params["name"] = male_names[random.randrange(0, len(male_names))]
 
-        # TODO: Move special jobs out into Defs
         if not creating_player:
             params["job"] = game_jobs[job]["name"]
             params["color"] = game_jobs[job]["color"]

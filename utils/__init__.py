@@ -22,6 +22,10 @@ class WrappedEncoder(json.JSONEncoder):
             return repr(obj)
 
 
+def object_dumps(obj):
+    return json.dumps(obj, indent=4, cls=WrappedEncoder)
+
+
 def eval_obj_state(obj, state_name=None):
     """
     Evaluates whether given object meets provided state's definition
