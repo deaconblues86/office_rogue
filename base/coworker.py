@@ -73,6 +73,7 @@ class Mob(BaseObject):
         phone_params = game_objects["Cellphone"]
         phone_params.update({"game": self.game, "x": 0, "y": 0})
         phone = Item(**phone_params)
+        phone.holder = self
         self.inventory.append(phone)
 
     @property
@@ -288,8 +289,7 @@ class Mob(BaseObject):
             self.target_action.init_action()
 
         if player_action:
-            self.game.cursor = None
-            self.game.popup_open = False
+            self.game.close_popup()
 
     def can_use(self, user):
         can_use = False
@@ -302,16 +302,39 @@ class Mob(BaseObject):
 
     def pickup_item(self, item):
         """ Called whenever a coworker picks up and item & by vendor when dispensing goods """
+        if self.inventory_full():
+            self.broadcast(f"{self.name.capitalize()}'s inventory is full", "dark_red")
+            return
+
         self.inventory.append(item)
         self.memories.remove_wanted(item.name)
         item.holder = self
         self.game.remove_tile_content(item)
+
+        if self is self.game.player:
+            self.game.close_popup()  # need to close popup first in order for game to reinit properly
+            self.game.open_pickup_item()
 
     def drop_item(self, item):
         self.inventory = list(filter(lambda x: x is not item, self.inventory))
         item.x, item.y = self.x, self.y
         item.holder = None
         self.game.add_tile_content(item)
+
+        if self is self.game.player:
+            self.game.close_popup()  # need to close popup first in order for game to reinit properly
+            self.game.open_drop_item()
+
+    def item_actions(self, selected_obj):
+        """
+        Function, similiar to cursor's, to generate list of actions available based on player's
+        choice in inventory
+        """
+        options = self.action_center.available_actions(selected_obj)
+        self.game.player.target = selected_obj
+        self.game.init_popup(
+            f"{selected_obj.name} options", options=options, popup_func=self.game.player.perform_action
+        )
 
     def inventory_full(self):
         return len(self.inventory) == self.max_inventory

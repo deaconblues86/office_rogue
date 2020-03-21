@@ -4,5 +4,6 @@
     - regardless of the reason, they should try to do something else in the meantime
 - Don't know how reagent list attr of Action is supposed to be populated, but right now drink_water_bottle/eating_snack is kind of F'ed
     - they have their item listed as a reagent but the effects are applied to the target (which presumably is the water bottle and snack as it seems to work)
-
+- Occasionally Coworkers seem to get "stuck"...  unclear if rendering is not updating for a spell or something wierd is occuring with movement (like ghost walking)
+- Witnessed a huge scary tantrem of unable to satisfy work across all job types - could be something to do with action weighting or maybe unable to perform memories? 
 

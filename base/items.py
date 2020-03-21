@@ -227,6 +227,7 @@ class Vendor(Appliance):
         """
         if not user:
             user = self.game.player
+            # self.game.close_popup()
         if user.inventory_full():
             user.broadcast(f"{user.name.capitalize()}'s inventory is full", "dark_red")
             return None
@@ -235,6 +236,11 @@ class Vendor(Appliance):
         item.owner = user
         user.pickup_item(item)
         user.broadcast(f"{user.name.capitalize()} received {item.name}", "white")
+
+        # TODO: Alternatively, the popup could once again close automatically by calling game's close_popup method
+        # If this is the player, reinit the vending popup to update inventory list
+        if user is self.game.player:
+            self.game.init_popup(self.name.capitalize(), options=self.inventory, popup_func=self.dispense)
 
     def dump(self):
         """ Dumps pertinent object attributes for user to view """

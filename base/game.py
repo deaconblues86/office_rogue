@@ -324,8 +324,7 @@ class GameInstance():
 
     def open_inventory(self):
         if not self.popup_open:
-            # TODO: Inventory no longer works
-            self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.use_item)
+            self.init_popup("Inventory", options=self.player.inventory, popup_func=self.player.item_actions)
 
     def open_pickup_item(self):
         if not self.popup_open:
@@ -352,29 +351,18 @@ class GameInstance():
             try:
                 opt_index = key - ord('a')
                 choice = self.popup_options[opt_index]
-
-                # Handles cursor based interations
-                # cursor provides target to GameInstance
-                # cursor never closes popup on it's own (due to that return)
-                if self.cursor:
-                    self.popup_func(choice)
-                    return
-
-                # Handles standard callback functions provided by object that
-                # called the popup
-                else:
-                    self.popup_func(choice)
-
-                self.popup_open = False
-                self.cursor = None
+                self.popup_func(choice)
 
             except IndexError:
                 pass
 
+    def close_popup(self):
+        self.popup_open = False
+        self.cursor = None
+
     def exit_order(self):
         if self.popup_open:
-            self.popup_open = False
-            self.cursor = None
+            self.close_popup()
         else:
             raise SystemExit()
 
