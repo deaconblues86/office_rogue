@@ -362,8 +362,9 @@ class Mob(BaseObject):
         attrs += ["target", "satisfying", "job", "occupied"]
         inv = [x.name for x in self.inventory]
         broken = [x.name for x in self.memories.broken_items]
+        unavailable = [x.name for x in self.memories.unavailable_actions]
         tasks = [x.name for x in self.get_tasks()]
         wants = self.memories.wanted_items
         return details + attrFormatter(
-            self, attrs, override={"broken": broken, "tasks": tasks, "inventory": inv, "wants": wants}
+            self, attrs, override={"broken": broken, "unavail": unavailable, "tasks": tasks, "inventory": inv, "wants": wants}
         )

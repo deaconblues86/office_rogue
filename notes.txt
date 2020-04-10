@@ -1,4 +1,3 @@
-- Really need to fix inventory
 - Action object menu more or less works, but bumping terminal shouldn't present drink_water_bottle as an option (though it is an available action)
 - Coworkers just currently sit still spamming "can't satisfy" if, more than likely, they find themselves unable to path to target
     - regardless of the reason, they should try to do something else in the meantime
@@ -6,6 +5,4 @@
     - they have their item listed as a reagent but the effects are applied to the target (which presumably is the water bottle and snack as it seems to work)
 - Occasionally Coworkers seem to get "stuck"...  unclear if rendering is not updating for a spell or something wierd is occuring with movement (like ghost walking)
 - Witnessed a huge scary tantrem of unable to satisfy work across all job types - could be something to do with action weighting or maybe unable to perform memories?
-
-- Good News:  Fixed inventory - forgot to include it in last commit
 
