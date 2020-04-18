@@ -181,11 +181,14 @@ class GameInstance():
 
     def add_tile_content(self, obj):
         # Communicates tile content change to MapGenerator which then updates path_map
+        # TODO: Since this called for every move action, messing with the world objects list here seems like a bad move
         self.game_map.place_object(obj)
         self.world_objs[obj.type].append(obj)
 
     def remove_tile_content(self, obj):
         # Communicates tile content change to MapGenerator which then updates path_map
+        # TODO: Since this called for every move action, messing with the world objects list here seems like a bad move
+        # Delete alone should do that
         self.game_map.remove_object(obj)
         self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 

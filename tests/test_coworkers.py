@@ -21,6 +21,20 @@ class TestCoworkerClass(BaseTestCase):
             ["Test can't path to Toilet"]
         )
 
+    def test_unsatsified(self):
+        self.coworker.bowels = 5
+        toilets = self.game.find_objs("Toilet")
+        for toilet in toilets:
+            toilet.occupied_by = True
+
+        self.coworker.check_needs()
+        self.coworker.check_needs()
+        self.assertNotEqual(self.coworker, "bowels")
+        self.assertEqual(self.coworker.memories.unsatisfied, ["bowels"])
+
+        for toilet in toilets:
+            toilet.occupied_by = None
+
     def test_action_weighting(self):
         """
         Test that action chosen is based on weighted criteria

@@ -329,6 +329,7 @@ class Thought():
 class Memories():
     def __init__(self, mob):
         self.mob = mob
+        self.unsatisfied = []
         self.unavailable_actions = []
         self.broken_items = []
         self.wanted_items = []
@@ -349,11 +350,27 @@ class Memories():
                 self.broken_items.pop(0)
             if self.unavailable_actions:
                 self.unavailable_actions.pop(0)
+            if self.unsatisfied:
+                self.unsatisfied.pop(0)
 
         for thought in self.thoughts:
             thought.apply_modifier(self.mob)
             thought.duration -= 1
         self.thoughts = [t for t in self.thoughts if t.duration <= 0]
+
+    def add_unsatisfied(self, need):
+        """
+        Try to pop already unsatisfied need from list if present
+        Add unsatisfied need to end of list
+        - pop done to "refresh" memory
+        """
+        try:
+            i = self.unsatisfied.index(need)
+            self.unsatisfied.pop(i)
+        except ValueError:
+            pass
+        finally:
+            self.unsatisfied.append(need)
 
     def add_unavailable(self, obj):
         """
@@ -384,7 +401,8 @@ class Memories():
             self.broken_items.append(obj)
 
     def add_wanted(self, item_name):
-        self.wanted_items.append(item_name)
+        if item_name not in self.wanted_items:
+            self.wanted_items.append(item_name)
 
     def remove_wanted(self, item_name):
         self.wanted_items = [x for x in self.wanted_items if x != item_name]

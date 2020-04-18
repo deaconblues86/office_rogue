@@ -4,5 +4,14 @@
 - Don't know how reagent list attr of Action is supposed to be populated, but right now drink_water_bottle/eating_snack is kind of F'ed
     - they have their item listed as a reagent but the effects are applied to the target (which presumably is the water bottle and snack as it seems to work)
 - Occasionally Coworkers seem to get "stuck"...  unclear if rendering is not updating for a spell or something wierd is occuring with movement (like ghost walking)
-- Witnessed a huge scary tantrem of unable to satisfy work across all job types - could be something to do with action weighting or maybe unable to perform memories?
 
+
+- Witnessed a huge scary tantrem of unable to satisfy work across all job types - could be something to do with action weighting or maybe unable to perform memories?
+    -> This should be resolved now
+    -> added new unsatisfied list to Memories, though probably not really necessary as its never actually checked by coworker
+     - coworker just continues to iterate over same list each time
+    -> additionally, refactored check_needs method a bit to clean things up
+
+- Fired coworkers, including player, seem to resurrect and continue roaming
+ - could be that delete_object doesn't work, as has been guessed in a note, or that I simply lost count of the workers
+ - Player could be special too

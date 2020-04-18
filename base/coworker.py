@@ -118,6 +118,63 @@ class Mob(BaseObject):
         self.target = None
         self.target_action = None
 
+    def find_next_target_action(self):
+        """
+        Iterates over ordered list of needs from most to least pressing
+         - If a task as been stored in memory, that will be returned instead
+         - Called every turn, so first need check we don't already know what to do
+        """
+        if not self.target_action:
+            if self.get_tasks():
+                self.target_action = self.memories.start_next_job()
+            else:
+                # TODO: Will need to add social back to coworker def at some point
+                # Iterate over list of sorted needs by priority, adding needs unsatisfied to list as needed
+                # break out once target is found
+                need_checks = sorted(
+                    [{"need": need, "perc": self.get_need_perc(need)} for need in self.needs],
+                    key=lambda x: x["perc"]
+                )
+                while True:
+                    try:
+                        self.satisfying = need_checks.pop(0)["need"]
+                    except IndexError:
+                        break
+
+                    self.target_action = self.action_center.find_action(self.satisfying)
+                    print(self.target_action)
+                    if self.target_action:
+                        break
+
+                    self.broadcast(f"{self.name} can't satisfy {self.satisfying}", debug=True)
+                    self.memories.add_unsatisfied(self.satisfying)
+
+    def find_next_target(self):
+        """
+        Requests closest target from action_center.  If none exist, the action will be marked
+        as unavailable
+         - Called every turn, so first need to check we don't ready have a target in mind
+        """
+        if not self.target:
+            self.target = self.action_center.find_target(self.target_action)
+            if not self.target:
+                self.broadcast(f"{self.name} can't find a target to perform {self.target_action}", debug=True)
+                self.no_target_available()
+
+    def calculate_target_path(self):
+        """
+        Asks GameInstance for path to target. If target now blocked, nothing will be returned.
+         - If target is self or we're already adjacent, no path needed
+        """
+        # Don't really need a path for self or adjacent target
+        if self.target is self or self.target in self.adjacent():
+            self.path = []
+        else:
+            self.path = self.game.find_path(self, self.target)
+            if not self.path:
+                self.broadcast(f"{self.name} can't path to {self.target}", debug=True)
+                self.broken_target()
+
     def check_needs(self):
         """
         Called every turn by take_turn.
@@ -125,46 +182,11 @@ class Mob(BaseObject):
          - If a task list has been created, pull next item instead
          - Finds target for current action if no target's in mind
         """
-        if not self.target_action:
-            if self.get_tasks():
-                self.target_action = self.memories.start_next_job()
-            else:
-                # TODO: Will need to add social back to coworker def at some point
-                need_checks = sorted(
-                    [{"need": need, "perc": self.get_need_perc(need)} for need in self.needs],
-                    key=lambda x: x["perc"]
-                )
-                self.satisfying = need_checks[0]["need"]
-                self.target_action = self.action_center.find_action(self.satisfying)
-
-            if not self.target_action:
-                self.broadcast(f"{self.name} can't satisfy {self.satisfying}", debug=True)
-                return
-
-        if not self.target:
-            self.target = self.action_center.find_target(self.target_action)
-            if not self.target:
-                self.broadcast(f"{self.name} can't find a target to perform {self.target_action}", debug=True)
-                self.no_target_available()
-                return
-
-            # Don't really need a path for self or adjacent target
-            if self.target is self or self.target in self.adjacent():
-                return
-
-            self.path = self.calculate_target_path()
-            if not self.path:
-                self.broadcast(f"{self.name} can't path to {self.target}", debug=True)
-                self.broken_target()
-
-    def calculate_target_path(self):
-        """
-        Asks GameInstance for path to target. If target now blocked, nothing will be returned.
-        """
-        path_target = self.target
-        path = self.game.find_path(self, path_target)
-
-        return path
+        self.find_next_target_action()
+        if self.target_action:
+            self.find_next_target()
+        if self.target:
+            self.calculate_target_path()
 
     def tick_needs(self):
         """
