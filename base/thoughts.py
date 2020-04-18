@@ -340,18 +340,15 @@ class Memories():
 
     def tick_memories(self):
         """
-        Every 15 cycles, 1 cycle == 6 game turns, remove oldest item found to be broken
+        Every cycle, 6 game turns, remove oldest broken item/unavailable action/unsatsified need
         Tick thought lifetimes, apply modifiers, and remove timed out thoughts
         """
-        self.broken_cycle += 1
-        if self.broken_cycle == 15:
-            self.broken_cycle = 0
-            if self.broken_items:
-                self.broken_items.pop(0)
-            if self.unavailable_actions:
-                self.unavailable_actions.pop(0)
-            if self.unsatisfied:
-                self.unsatisfied.pop(0)
+        if self.broken_items:
+            self.broken_items.pop(0)
+        if self.unavailable_actions:
+            self.unavailable_actions.pop(0)
+        if self.unsatisfied:
+            self.unsatisfied.pop(0)
 
         for thought in self.thoughts:
             thought.apply_modifier(self.mob)

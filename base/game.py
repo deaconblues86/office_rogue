@@ -148,8 +148,7 @@ class GameInstance():
 
             for worker in self.world_objs[ObjType.mob]:
                 if worker is self.player:
-                    if not self.player.fired:
-                        worker.tick_needs()
+                    worker.tick_needs()
                     continue
                 worker.take_turn()
 
@@ -181,16 +180,11 @@ class GameInstance():
 
     def add_tile_content(self, obj):
         # Communicates tile content change to MapGenerator which then updates path_map
-        # TODO: Since this called for every move action, messing with the world objects list here seems like a bad move
         self.game_map.place_object(obj)
-        self.world_objs[obj.type].append(obj)
 
     def remove_tile_content(self, obj):
         # Communicates tile content change to MapGenerator which then updates path_map
-        # TODO: Since this called for every move action, messing with the world objects list here seems like a bad move
-        # Delete alone should do that
         self.game_map.remove_object(obj)
-        self.world_objs[obj.type] = list(filter(lambda x: x is not obj, self.world_objs[obj.type]))
 
     def create_object(self, x, y, obj_params, holder=None):
         obj_params.update({"game": self, "x": x, "y": y})
@@ -219,10 +213,15 @@ class GameInstance():
 
         return obj
 
+    def log_object(self, obj):
+        # Called by BaseObject itself upon instantiation
+        # Only in GameInstance so it may maintain it's own list
+        # TODO: Could do something similiar for Destroy (tm) rather than calling delete_object method
+        self.world_objs[obj.type].append(obj)
+
     def transform_object(self, obj, new):
         new = game_objects.get(new)
         if new:
-            # TODO: Pretty sure delete_object still leaves the object in the game's list of objects...
             self.create_object(obj.x, obj.y, new, holder=getattr(obj, "holder", None))
             self.delete_object(obj, holder=getattr(obj, "holder", None))
         else:
@@ -233,6 +232,8 @@ class GameInstance():
             holder.drop_item(obj)
 
         self.remove_tile_content(obj)
+        i = self.world_objs[obj.type].index(obj)
+        self.world_objs[obj.type].pop(i)
         del obj
 
     def log_action(self, action):

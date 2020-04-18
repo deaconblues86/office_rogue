@@ -15,3 +15,24 @@
 - Fired coworkers, including player, seem to resurrect and continue roaming
  - could be that delete_object doesn't work, as has been guessed in a note, or that I simply lost count of the workers
  - Player could be special too
+ -> This appears to be resolved now
+
+
+- Occasional stacktrace when action is performed.  In this case, this was a player action, but I think i've seen it with npcs as well
+- Simple enough to fix, but the better question is why the render wouldn't have the action cached.  Timing?
+Traceback (most recent call last):
+  File ".\app.py", line 52, in <module>
+    game.run_coworkers()
+  File "D:\source\office_rogue\base\game.py", line 147, in run_coworkers
+    action.tick_action()
+  File "D:\source\office_rogue\base\thoughts.py", line 120, in tick_action
+    self.resolve_action()
+  File "D:\source\office_rogue\base\thoughts.py", line 127, in resolve_action
+    self.actor.finished_action(self)
+  File "D:\source\office_rogue\base\coworker.py", line 116, in finished_action
+    self.game.complete_action(action)
+  File "D:\source\office_rogue\base\game.py", line 245, in complete_action
+    del self.renderer.action_cache[action]
+KeyError: Action: vending of Bill at 38, 8
+
+- Recently MapGen seems to be stacking maps on top of each other.  Maybe not tossing failures in all cases?

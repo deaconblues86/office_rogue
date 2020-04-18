@@ -111,7 +111,8 @@ class Renderer():
 
     def render_all(self):
         for obj_type in self.game.world_objs:
-            for obj in self.game.world_objs[obj_type]:
+            # Only rendering objects in world_objs if not held by coworker - only applies to Items
+            for obj in filter(lambda x: not getattr(x, "holder", None), self.game.world_objs[obj_type]):
                 self.render(obj)
 
         if self.game.cursor:

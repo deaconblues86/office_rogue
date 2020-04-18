@@ -136,6 +136,7 @@ class TestCoworkerClass(BaseTestCase):
         self.assertTrue("Test" not in [x.name for x in self.game.world_objs[ObjType.mob]])
         self.assertEqual(len(self.game.find_objs("Test")), 0)
         self.assertEqual(len(self.game.find_objs("Corpse")), 1)
+        self.assertTrue(self.coworker not in self.game.world_objs[ObjType.mob])
 
     def test_quit_trigger(self):
         self.assertTrue("Test" in [x.name for x in self.game.world_objs[ObjType.mob]])
@@ -144,3 +145,4 @@ class TestCoworkerClass(BaseTestCase):
         self.assertTrue("Test" not in [x.name for x in self.game.world_objs[ObjType.mob]])
         self.assertEqual(len(self.game.find_objs("Test")), 0)
         self.assertEqual(len(self.game.find_objs("Corpse")), 1)
+        self.assertTrue(self.coworker not in self.game.world_objs[ObjType.mob])

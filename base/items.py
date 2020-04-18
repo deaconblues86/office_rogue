@@ -57,6 +57,9 @@ class BaseObject():
 
         self.triggers = kwargs.get("triggers", [])
 
+        # On Init, BaseObjects will log themselves with the GameInstance
+        self.game.log_object(self)
+
     def __str__(self):
         return f"{self.name} at {self.x}, {self.y}"
 
